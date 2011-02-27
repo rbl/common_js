@@ -96,12 +96,27 @@ Queue.prototype.streamData = function(data)
     try 
     {
       var msg = JSON.parse(toParse[i]);
+
+      // Allow a preDispatchHook to pre-process or otherwise veto the dispatching
+      if (this.preDispatchHook)
+      {
+        if (!this.preDispatchHook(msg))
+        {
+          L.debugi("Pre-dispatch hook returned false, skipping dispatch");
+          continue;
+        }
+      }
+      
       L.infoi("Dispatching message",msg);
       this.emit("message", msg);
     }
     catch(err)
     {
       L.warni("Error during message dispatch",err);
+      if (err.stack)
+      {
+        L.warni(err.stack);
+      }
       this.emit("messageException",err);
     }
   }  

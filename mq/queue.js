@@ -30,7 +30,7 @@ function Queue(stream)
   this.stream = stream;
   
   this.channelTemp = Buffer(4);
-  this.incomingBuffer = BUffer(1024); // Start with a 1k buffer, which sounds reasonableish
+  this.incomingBuffer = Buffer(1024); // Start with a 1k buffer, which sounds reasonableish
   this.setParseStateGround();
   
   var self = this;

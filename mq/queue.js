@@ -7,6 +7,7 @@ var Events = require("events");
 
 var L = require("log");
 var PK = require("pk");
+var ByteDeque = require("byteDeque");
 
 /**
  * Creates a Queue object with the given stream. TLS needs to be handled prior to the
@@ -22,10 +23,15 @@ function Queue(stream)
 {
   Events.EventEmitter.call(this);
 
-  this.outgoingQueue = [];
-  this.incomingQueue = [];
-  this.incomingPartial = "";  
+  // this.outgoingQueue = [];
+  // this.incomingQueue = [];
+  // this.incomingPartial = ""; 
+  this.deque = ByteDeque.create();
   this.stream = stream;
+  
+  this.channelTemp = Buffer(4);
+  this.incomingBuffer = BUffer(1024); // Start with a 1k buffer, which sounds reasonableish
+  this.setParseStateGround();
   
   var self = this;
   stream.on("connect",  function() {self.streamConnect()});
@@ -72,54 +78,62 @@ Queue.prototype.streamData = function(data)
 {
   L.logi("streamData",data);
   
-  // Add this on to whatever we had already
-  this.incomingPartial = this.incomingPartial + data;
+  // Add it to the deque
+  this.deque.writeBuffer(data);
   
-  // Decide if the last element is going to be parsable or not
-  var lastChar = this.incomingPartial.charAt(this.incomingPartial.length-1);
-  
-  // Now split it up for parsing
-  var toParse = this.incomingPartial.split("\n");
-  this.incomingPartial = "";
-  
-  for(var i=0; i<toParse.length; i++)
+  // If we have enough data, dispatch to the next parsing function
+  while (this.deque.length() >= this.amtRequired)
   {
-    if ((i === toParse.length - 1) && (lastChar !== "\n"))
-    {
-      // The last one is not a complete thing, so we're out
-      this.incomingPartial = toParse[i];
-      break;
-    }
-    
-    if (toParse[i].length == 0) continue;
-        
-    try 
-    {
-      var msg = JSON.parse(toParse[i]);
-
-      // Allow a preDispatchHook to pre-process or otherwise veto the dispatching
-      if (this.preDispatchHook)
-      {
-        if (!this.preDispatchHook(msg))
-        {
-          L.debugi("Pre-dispatch hook returned false, skipping dispatch");
-          continue;
-        }
-      }
-      
-      L.infoi("Dispatching message",msg);
-      this.emit("message", msg);
-    }
-    catch(err)
-    {
-      L.warni("Error during message dispatch",err);
-      if (err.stack)
-      {
-        L.warni(err.stack);
-      }
-      this.emit("messageException",err);
-    }
-  }  
+    this.nextParseFunction();
+  }
+  // // Add this on to whatever we had already
+  // this.incomingPartial = this.incomingPartial + data;
+  // 
+  // // Decide if the last element is going to be parsable or not
+  // var lastChar = this.incomingPartial.charAt(this.incomingPartial.length-1);
+  // 
+  // // Now split it up for parsing
+  // var toParse = this.incomingPartial.split("\n");
+  // this.incomingPartial = "";
+  // 
+  // for(var i=0; i<toParse.length; i++)
+  // {
+  //   if ((i === toParse.length - 1) && (lastChar !== "\n"))
+  //   {
+  //     // The last one is not a complete thing, so we're out
+  //     this.incomingPartial = toParse[i];
+  //     break;
+  //   }
+  //   
+  //   if (toParse[i].length == 0) continue;
+  //       
+  //   try 
+  //   {
+  //     var msg = JSON.parse(toParse[i]);
+  // 
+  //     // Allow a preDispatchHook to pre-process or otherwise veto the dispatching
+  //     if (this.preDispatchHook)
+  //     {
+  //       if (!this.preDispatchHook(msg))
+  //       {
+  //         L.debugi("Pre-dispatch hook returned false, skipping dispatch");
+  //         continue;
+  //       }
+  //     }
+  //     
+  //     L.infoi("Dispatching message",msg);
+  //     this.emit("message", msg);
+  //   }
+  //   catch(err)
+  //   {
+  //     L.warni("Error during message dispatch",err);
+  //     if (err.stack)
+  //     {
+  //       L.warni(err.stack);
+  //     }
+  //     this.emit("messageException",err);
+  //   }
+  // }  
 }
 
 /**
@@ -191,31 +205,6 @@ Queue.prototype.streamClose = function(hadError)
   this.emit("close",hadError);
 }
 
-/**
- * Write any pending messages from the message queue
- *
- * @type void
- */
-Queue.prototype.writeQueuedMessages = function()
-{
-  for(var i=0; i<this.outgoingQueue.length; i++)
-  {
-    var msg = this.outgoingQueue[i];
- 
-    if (this.stream.writable)
-    {
-      this.stream.write(JSON.stringify(msg));
-      this.stream.write("\n");
-    }
-    else
-    {
-      L.logi("Stream not writable. Ignoring outgoing msg",msg);
-    }
-  }
-
-  // Empty it by making a new one
-  this.outgoingQueue = [];
-}
 
 /**
  * External interface used to send a message on the JSON message channel. The message
@@ -226,8 +215,15 @@ Queue.prototype.writeQueuedMessages = function()
  */
 Queue.prototype.sendMessage = function(msg)
 {
-  this.outgoingQueue.push(msg);
-  this.writeQueuedMessages();
+  PK.writeUInt32(0,this.channelTemp);
+  this.stream.write(this.channelTemp);
+
+  // Making the new buffer object all the time isn't awesome, but hopefully it ain't horrid
+  out = new Buffer(JSON.stringify(msg));
+  PK.writeUInt32(out.length, this.channelTemp);
+  this.stream.write(this.channelTemp);
+  
+  this.stream.write(out);
 }
 
 /**
@@ -247,4 +243,99 @@ Queue.prototype.registerHandlers = function(handlers)
       self.on("message", function(msg) { if (msg.type===key) handler.handle(self, msg); } );
     })(self, key,handler);
   }
+}
+
+Queue.prototype.setParseStateGround = function()
+{
+  // payload length (uint32)
+  // Channel (uint32)
+  this.amtRequired = 8;
+
+  this.nextParseFunction = this.parseChannel;
+} 
+
+Queue.prototype.parseChannel = function()
+{
+  // Payload length first
+  var r = this.deque.readBuffer(channelTemp);
+  if (r!=4)
+  {
+    throw new Error("Failed to read 4 bytes for PDU payload length");
+  }
+  this.amtRequired = PK.readUInt32(channelTemp);
+  
+  // First 4 bytes are the channel
+  r = this.deque.readBuffer(channelTemp);
+  if (r!=4)
+  {
+    throw new Error("Failed to read 4 bytes for PDU payload length");
+  }
+  this.incomingChannel = PK.readUInt32(channelTemp);
+  
+  this.nextParseFunction = this.parsePayload;
+}
+
+Queue.prototype.parsePayload = function()
+{
+  if (this.incomingBuffer.length < this.amtRequired)
+  {
+    this.incomingBuffer = new Buffer(this.amtRequired);
+  }
+  
+  var r = this.deque.read(this.incomingBuffer, 0, this.amtRequired);
+  if (r!=this.amtRequired)
+  {
+    throw new Error("Umm, I was promised "+this.amtRequired+" but only managed to read "+r+". Fail.");
+  }
+  
+  if (!this.incomingChannel)
+  {
+    // Treat it as a message
+    this.dispatchMessage();
+  }
+  else
+  {
+    // Some other data stream
+    this.dispatchData();
+  }
+  
+  this.setParseStateGround();
+}
+
+Queue.prototype.dispatchMessage = function()
+{
+  L.logi("Dispatching message");
+  try 
+  {
+    data = this.incomingBuffer.slice(0,this.amtRequired);
+    var msg = JSON.parse(this.incomingBuffer);
+
+    // Allow a preDispatchHook to pre-process or otherwise veto the dispatching
+    if (this.preDispatchHook)
+    {
+      if (!this.preDispatchHook(msg))
+      {
+        L.debugi("Pre-dispatch hook returned false, skipping dispatch");
+        continue;
+      }
+    }
+    
+    L.infoi("Dispatching message",msg);
+    this.emit("message", msg);
+  }
+  catch(err)
+  {
+    L.warni("Error during message dispatch",err);
+    if (err.stack)
+    {
+      L.warni(err.stack);
+    }
+    this.emit("messageException",err);
+  }
+  
+}
+
+Queue.prototype.dispatchData = function()
+{
+  L.logi("Dispatching data, channel=",this.incomingChannel,"size=",this.amtRequired);
 }

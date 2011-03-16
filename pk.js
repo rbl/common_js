@@ -204,3 +204,42 @@ exports.deepCopy = function(src)
   }
   return newInstance;
 }
+
+/**
+ * Reads a UInt32 from a buffer. For speed it presumes you have already checked
+ * to ensure there are 4 bytes of data remaining in the buffer at the given offset.
+ * The bytes are read in network byte order - MSB first.
+ *
+ * @param {Buffer} buffer - The buffer to read from
+ * @param {int} off - An offset to begin reading 4 bytes of data
+ * @returns the value of the uint32
+ * @type uint32
+ */
+exports.readUInt32 = function(buffer, off)
+{
+  if (!off) off = 0;
+  var out = buffer[off];
+  out = (out << 8) + buffer[off+1];
+  out = (out << 8) + buffer[off+2];
+  out = (out << 8) + buffer[off+3];
+  return out;
+}
+
+/**
+ * Writes a uint32 to the given buffer. Assumes that there are 4 bytes of space
+ * available in that buffer. Value is written in network byte order, MSB first.
+ *
+ * @param {Buffer} buffer - The buffer to write to
+ * @param {int} off - An offset to begin writing 4 bytes of data
+ * @param {uint32} value - The value to write
+ * @type void
+ */
+exports.writeUInt32 = function(value, buffer, off)
+{
+  if (!off) off = 0;
+  
+  buffer[off]   = (value >> 24) & 0x00ff;
+  buffer[off+1] = (value >> 16) & 0x00ff;
+  buffer[off+2] = (value >>  8) & 0x00ff;
+  buffer[off+3] = (value      ) & 0x00ff;
+}

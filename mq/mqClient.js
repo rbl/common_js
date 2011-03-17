@@ -79,6 +79,12 @@ MQClient.prototype.streamConnect = function()
   this.queue.sendMessage(auth);
 }
 
+MQClient.prototype.streamError = function(error)
+{
+  L.logi("MessageQueue.streamError",error)
+  this.emit("error", error);
+}
+
 MQClient.prototype.queueClose = function(hadError)
 {
   L.logi("MQClient.queueClose");
@@ -104,6 +110,7 @@ MQClient.prototype.startStream = function()
   // TODO: Establish secure credentials as necessary here
   var self = this;
   stream.on("connect",  function() {self.streamConnect()});
+  stream.on("error", function(error) {self.streamError(error)});
   
   this.queue = Queue.create(stream);
   this.queue.on("close", function() {self.queueClose();});
@@ -113,7 +120,7 @@ MQClient.prototype.startStream = function()
 
 MQClient.prototype.start = function(callback)
 {
-  L.log("Starting messageQueue with configuration endpoint",this.config);
+  L.infoi("Starting messageQueue with configuration endpoint",this.config.url);
   
   // Get an OAuth token
   var client_credentials =

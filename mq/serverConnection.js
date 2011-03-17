@@ -85,7 +85,7 @@ ServerConnection.prototype.preDispatchAuthenticator = function(msg)
   return false;
 }
 
-ServerConnection.prototype.queueClose = function(hadError)
+ServerConnection.prototype.queueClosed = function(hadError)
 {
   // Drop the stream and try to restart the message queue
   L.log("queue closed, hadError",hadError);

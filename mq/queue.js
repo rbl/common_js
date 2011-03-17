@@ -9,6 +9,9 @@ var L = require("log");
 var PK = require("pk");
 var ByteDeque = require("byteDeque");
 
+// The next value for a data channel other than the message channel
+var nextChannel = 1;
+
 /**
  * Creates a Queue object with the given stream. TLS needs to be handled prior to the
  * stream being given to us because it varies for clients and servers. This class is
@@ -43,7 +46,7 @@ function Queue(stream)
   stream.on("close",    function(hadError) {self.streamClose(hadError)});
     
   // This makes it so we gets strings in the "data" event
-  stream.setEncoding("utf8");  
+  //stream.setEncoding("utf8");  
   L.logi("Queue() constructor")
   L.logi("writable = ",this.stream.writable)
 }
@@ -81,8 +84,9 @@ Queue.prototype.streamData = function(data)
   // Add it to the deque
   this.deque.writeBuffer(data);
   
+  L.logi("this.deque.getLength()=",this.deque.getLength())
   // If we have enough data, dispatch to the next parsing function
-  while (this.deque.length() >= this.amtRequired)
+  while (this.deque.getLength() >= this.amtRequired)
   {
     this.nextParseFunction();
   }
@@ -199,7 +203,7 @@ Queue.prototype.streamError = function(exception)
 Queue.prototype.streamClose = function(hadError)
 {
   // Drop the stream and try to restart the message queue
-  L.log("stream closed, hadError",hadError,". Reconnecting in 10 seconds");
+  L.log("stream closed, hadError",hadError);
   this.stream = null;
   // Rebroadcast this event
   this.emit("close",hadError);
@@ -215,19 +219,77 @@ Queue.prototype.streamClose = function(hadError)
  */
 Queue.prototype.sendMessage = function(msg)
 {
+  // Making the new buffer object all the time isn't awesome, but hopefully it ain't horrid
+  out = new Buffer(JSON.stringify(msg));
+  PK.writeUInt32(out.length + 4, this.channelTemp);
+  this.stream.write(this.channelTemp);
+
+  // First 4 bytes are the channel
   PK.writeUInt32(0,this.channelTemp);
   this.stream.write(this.channelTemp);
 
-  // Making the new buffer object all the time isn't awesome, but hopefully it ain't horrid
-  out = new Buffer(JSON.stringify(msg));
-  PK.writeUInt32(out.length, this.channelTemp);
-  this.stream.write(this.channelTemp);
-  
   this.stream.write(out);
 }
 
 /**
- * Register a collection of handlers to specific events.
+ * Gets a new channel number. Channels are not really "open" or "closed". Things
+ * that want to send some sort of data need to just get a new channel and then
+ * implement their own close message outside of the channel stream. Since channel
+ * ids are ints there really shouldn't be an overflow issue.
+ * 
+ * In the future we might do a generic channel close mechanism if we really start
+ * having a lot of streaming going back and forth and what not.
+ *
+ * @returns A new channel number
+ * @type int
+ */
+Queue.prototype.getNewChannel = function()
+{
+  return nextChannel++;
+}
+
+/**
+ * Send data on a given channel. The data can be a string or preferably a
+ * full Buffer object. You presumably could send data on channel 0 - but probably
+ * shouldn't. That's reserved for JSON messages. To get a new channel to 
+ * send on, use getNewChannel and then communicate this to your peer in some
+ * use dependent fashion.
+ *
+ * @param {int} channel - The channel this data will be sent on
+ * @param {String|Buffer} data - The data to send
+ * @type void
+ */
+Queue.prototype.sendDataOnChannel = function(data, channel)
+{
+  if (typeof channel == 'undefined')
+  {
+    L.hr();
+    L.errori("Attempting to send",data.length,"bytes on undefined channel. Boo!");
+    L.logStack();
+  }
+  L.logi("sending",data.length,"bytes of data on channel",channel);
+  
+  if (!(data instanceof Buffer))
+  {
+    data = Buffer(data.toString());
+  }
+  
+  // The amount of data we be writing, plus the channel identifier  
+  PK.writeUInt32(data.length + 4, this.channelTemp);
+  this.stream.write(this.channelTemp);
+
+  // First 4 bytes are the channel
+  PK.writeUInt32(channel,this.channelTemp);
+  L.logi("channelTemp is",this.channelTemp);
+  this.stream.write(this.channelTemp);
+
+  // The data itself
+  this.stream.write(data);
+}
+
+/**
+ * Register a collection of handlers to specific events.  While this seems handy, the
+ * downside is there is no way to unregister them. 
  *
  * @param {Object} handlers - map that includes handler functions for named message types
  * @type void
@@ -245,6 +307,11 @@ Queue.prototype.registerHandlers = function(handlers)
   }
 }
 
+
+
+////////////////////////////////////////////////////////////////////////////////////
+// Internal / Private things after here ....
+
 Queue.prototype.setParseStateGround = function()
 {
   // payload length (uint32)
@@ -257,21 +324,35 @@ Queue.prototype.setParseStateGround = function()
 Queue.prototype.parseChannel = function()
 {
   // Payload length first
-  var r = this.deque.readBuffer(channelTemp);
+  var r = this.deque.readBuffer(this.channelTemp);
   if (r!=4)
   {
     throw new Error("Failed to read 4 bytes for PDU payload length");
   }
-  this.amtRequired = PK.readUInt32(channelTemp);
+  this.amtRequired = PK.readUInt32(this.channelTemp);
+  L.logi("length is ",this.amtRequired);
+  
+  if (this.amtRequired < 4)
+  {
+    // WTF mate?
+    L.warni("Got weird payload length",this.amtRequired,". Reading and trying to continue, but probably will go bad soon.")
+    this.deque.readBuffer(this.channelTemp, 0, this.amtRequired);
+    this.setParseStateGround();
+    return;
+  }
   
   // First 4 bytes are the channel
-  r = this.deque.readBuffer(channelTemp);
+  r = this.deque.readBuffer(this.channelTemp);
   if (r!=4)
   {
     throw new Error("Failed to read 4 bytes for PDU payload length");
   }
-  this.incomingChannel = PK.readUInt32(channelTemp);
+  this.incomingChannel = PK.readUInt32(this.channelTemp);
+  L.logi("Incoming channel is",this.incomingChannel);
   
+  // Reduce the amt required
+  this.amtRequired -= 4;
+  L.logi("Remaining data is",this.amtRequired);
   this.nextParseFunction = this.parsePayload;
 }
 
@@ -306,9 +387,9 @@ Queue.prototype.dispatchMessage = function()
 {
   L.logi("Dispatching message");
   try 
-  {
-    data = this.incomingBuffer.slice(0,this.amtRequired);
-    var msg = JSON.parse(this.incomingBuffer);
+  {    
+    data = this.incomingBuffer.slice(0,this.amtRequired);    
+    var msg = JSON.parse(data);
 
     // Allow a preDispatchHook to pre-process or otherwise veto the dispatching
     if (this.preDispatchHook)
@@ -316,7 +397,7 @@ Queue.prototype.dispatchMessage = function()
       if (!this.preDispatchHook(msg))
       {
         L.debugi("Pre-dispatch hook returned false, skipping dispatch");
-        continue;
+        return;
       }
     }
     
@@ -331,11 +412,25 @@ Queue.prototype.dispatchMessage = function()
       L.warni(err.stack);
     }
     this.emit("messageException",err);
-  }
-  
+  }  
 }
 
 Queue.prototype.dispatchData = function()
 {
   L.logi("Dispatching data, channel=",this.incomingChannel,"size=",this.amtRequired);
+  try 
+  {    
+    data = this.incomingBuffer.slice(0,this.amtRequired);      
+    this.emit("c"+this.incomingChannel,data);
+  }
+  catch(err)
+  {
+    L.warni("Error during channel",this.incomingChannel,"dispatch",err);
+    if (err.stack)
+    {
+      L.warni(err.stack);
+    }
+    this.emit("dataException",err);
+  }
 }
+

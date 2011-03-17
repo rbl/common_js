@@ -37,10 +37,9 @@ WebRequest.prototype.start = function(body, callback)
   if (!this.url.port) this.url.port = 80;
   var asJSON = this.asJSON;
   
-  L.logi("WebRequest.start()",this.method,this.url.host, this.url.port, this.url.pathname)
+  L.debugi("WebRequest.start()",this.method,this.url.host, this.url.port, this.url.pathname)
   
   // Todo, in the future cache these. For now, make them all new
-  L.log('creating client');
   var client = Http.createClient(this.url.port, this.url.hostname);
   
   var bodyContent = body;
@@ -50,7 +49,7 @@ WebRequest.prototype.start = function(body, callback)
   {
     if (asJSON)
     {
-      L.log('Writing body, encoding as JSON');    
+      L.debug('Writing body, encoding as JSON');    
       bodyContent = JSON.stringify(body);
       headers["Content-Type"] = "application/json";
     }
@@ -58,13 +57,13 @@ WebRequest.prototype.start = function(body, callback)
     {
       if (typeof body === "object")
       {
-        L.log("Writing body, encoding using query string");
+        L.debug("Writing body, encoding using query string");
         bodyContent = QueryString.encode(body);
         headers["Content-Type"] = "application/x-www-form-urlencoded";
       }
       else
       {
-        L.log('Writing body, no additional encoding');    
+        L.debug('Writing body, no additional encoding');    
         bodyContent = body;
         headers["Content-Type"] = "text/plain";
       }
@@ -92,6 +91,7 @@ WebRequest.prototype.start = function(body, callback)
     {
       responseBuffer += chunk;
     });
+    
     response.on('end', function()
     {
       // Hand the entire response to the callback
@@ -109,6 +109,15 @@ WebRequest.prototype.start = function(body, callback)
         }
       }
     })
+  });
+  
+  client.on('error', function(error) 
+  {
+    if (callback)
+    {
+      return callback(error);
+    }
+    L.errori("HttpClient on 'error'",error);
   });
 }
 

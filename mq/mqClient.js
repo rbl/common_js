@@ -53,7 +53,16 @@ MQClient.prototype.createIdentity = function(next)
   };
   
   ident.persistentId = this.config.persistentId;
-  ident.hostname = Os.getHostname();
+  if (Os.hostname)
+  {
+    // 0.5 and beyond
+    ident.hostname = Os.hostname();
+  }
+  else
+  {
+    // Older node...
+    ident.hostname = Os.getHostname();
+  }
   
   // Get some system information here ...
   ChildProcess.exec("uname -a", function(err,stdout,stderr)

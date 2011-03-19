@@ -112,7 +112,7 @@ MQClient.prototype.startStream = function()
     return;
   }
   
-  L.log("Starting a new stream connection");
+  L.log("Starting a new stream connection to",this.streamConfig.host,":",this.streamConfig.port);
   
   var stream = Net.createConnection(this.streamConfig.port, this.streamConfig.host);
   
@@ -153,7 +153,20 @@ MQClient.prototype.start = function(callback)
       if (grant.error) return callback(new Error(grant.error_description));
 
       self.oauth_token = grant.access_token;
-
+      if (grant.droneConfig.host && grant.droneConfig.host.length > 0)
+      {
+        self.streamConfig.host = grant.droneConfig.host;
+      }
+      else
+      {
+        self.streamConfig.host = self.config.url.host;
+      }
+            
+      if (grant.droneConfig.port)
+      {
+        self.streamConfig.port = grant.droneConfig.port;
+      }
+      
       // Start up the stream
       self.startStream();
     });

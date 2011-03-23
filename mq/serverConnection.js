@@ -5,6 +5,7 @@ var Util = require("util");
 var Events = require("events");
 
 var L = require("log");
+var PK = require("pk");
 var Queue = require("./queue");
 
 /**
@@ -67,8 +68,12 @@ ServerConnection.prototype.preDispatchAuthenticator = function(msg)
     return false;
   }
 
-  // Ok, let's see if that token is good sauce
-  if (!this.parent.registerConnection(token,msg.ident,this))
+  // Ok, let's see if that token is good sauce.
+  // Since everything MUST have an identifier, make one up if the client didn't send one (lowsy client!)
+  // Using the token for an identifier would be a horrible idea because the token grants
+  // identity along with it's associated authorizations.
+  var ident = msg.ident || PK.uuid();
+  if (!this.parent.registerConnection(token,ident,this))
   {
     L.warni("Authentication failed for",token);
     this.queue.sendMessage({type:"error", description:"Invalid authentication token"});

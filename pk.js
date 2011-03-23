@@ -243,3 +243,24 @@ exports.writeUInt32 = function(value, buffer, off)
   buffer[off+2] = (value >>  8) & 0x00ff;
   buffer[off+3] = (value      ) & 0x00ff;
 }
+
+/**
+ * Get the "length of a hash". In reality this counts the objects owned
+ * directly by the given object, no matter what sort of object it is. It lets
+ * you do things like
+ * 
+ *     var x = {a:1, b:2}
+ *     PK.objLength(x) => 2
+ *
+ * @param {Object} obj - An object with some keys
+ * @returns The count of the keys attached to the object
+ * @type int
+ */
+exports.objLength = function(obj)
+{
+  var size = 0;
+  for (var key in obj) {
+      if (obj.hasOwnProperty(key)) size++;
+  }
+  return size;
+}

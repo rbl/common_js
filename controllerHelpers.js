@@ -83,16 +83,16 @@ exports.validate = function(req,res,meta,target)
   }
   
   // We have all the right params, so do the request
+  // TODO: It might not be horrible to either wrap the target at this point in a try/catch so
+  // we can format exceptions as JSON or maybe we just need to do that in a middleware error handler.
   return target(req,res,meta);  
 }
 
-exports.register = function(app, name, controller, config)
-{
+exports.register = function(app, name, controller, config) {
   controller.config = config;
   var meta = controller.meta;
   
-  for (key in meta)
-  {
+  for (key in meta) {
     var data = meta[key];
     
     var endpoint = "/" + name;
@@ -100,26 +100,42 @@ exports.register = function(app, name, controller, config)
     {
       endpoint += "/" + data.endpoint;
     }
-    
+        
     L.info("endpoint = ",endpoint);
-    // TODO: Be more intelligent about which methods to register for a given endpoint
     
-    if (data.required_scope)
-    {
+    var methods;
+    if (data.methods) {
+      // Have to make sure they are lowercase
+      methods = [];
+      for(var ix = 0; ix<data.methods.length; ix++) {
+        methods.push(data.methods[ix].toLowerCase())
+      }
+    } else {
+      // By default, everything
+      methods = ["get", "post", "put", "delete"];
+    }
+    
+    if (data.required_scope) {
       L.info("  requires scope",data.required_scope)
-      app.get(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
-      app.post(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
-      app.put(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
-      app.delete(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
-    }
-    else
-    {
+      for(var ix = 0; ix<methods.length; ix++) {
+        var method = methods[ix];
+        app[method](endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
+      }
+      
+      // app.get(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
+      // app.post(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
+      // app.put(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
+      // app.delete(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
+    } else {
       L.info("  No scope required")
-      app.get(endpoint, controller[key]);
-      app.post(endpoint, controller[key]);
-      app.put(endpoint, controller[key]);
-      app.delete(endpoint, controller[key]);
+      for(var ix = 0; ix<methods.length; ix++) {
+        var method = methods[ix];
+        app[method](endpoint, controller[key]);
+      }
+      // app.get(endpoint, controller[key]);
+      // app.post(endpoint, controller[key]);
+      // app.put(endpoint, controller[key]);
+      // app.delete(endpoint, controller[key]);
     }
-  }
-  
+  }  
 }

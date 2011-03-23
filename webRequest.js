@@ -22,13 +22,9 @@ var WebRequest = function WebRequest(opts)
   {
     url = opts.url;
     if (!url.protocol) url.protocol = "http:";
+    if (!url.hostname && url.host) url.hostname = url.host;
   }
   this.url = url;
-  //this.urlStr = URL.format(url);
-  
-  this.method = opts.method || 'GET';
-  
-  //Sys.puts("Created WebRequest: "+Sys.inspect(this))
 }
 
 WebRequest.prototype.start = function(body, callback)
@@ -42,9 +38,25 @@ WebRequest.prototype.start = function(body, callback)
   // Todo, in the future cache these. For now, make them all new
   var client = Http.createClient(this.url.port, this.url.hostname);
   
-  var bodyContent = body;
   var headers = {'host': this.url.hostname};
+
+  var path = this.url.pathname;
+  if (body && (this.method === "GET" || this.method == "DELETE")) {
+    // These don't actually allow us to send content, so put this stuff in
+    // the url path as query parameters
+    if (path.indexOf("?")==-1) {
+      // No existing params
+      path += "?";
+    } else {
+      // Something there already
+      path += "&";
+    }
+    
+    path += QueryString.stringify(body);
+    body = null;
+  }
   
+  var bodyContent;
   if (body)
   {
     if (asJSON)
@@ -69,7 +81,7 @@ WebRequest.prototype.start = function(body, callback)
       }
     }
   }
-  var request = client.request(this.method, this.url.pathname, headers);
+  var request = client.request(this.method, path, headers);
   if (bodyContent)
   {
     request.write(bodyContent);
@@ -121,21 +133,31 @@ WebRequest.prototype.start = function(body, callback)
   });
 }
 
-exports.get = function(url, callback)
+exports.get = function(url, doc, callback)
 {
+  if ((typeof doc) == "function") {
+    callback = doc; 
+    doc = null;
+  }
+
   var opts = {url: url, method: "GET"};
   var req = new WebRequest(opts);
   
-  return req.start(null, callback);
+  return req.start(doc, callback);
 }
 
 
-exports.delete = function(url, callback)
+exports.delete = function(url, doc, callback)
 {
+  if ((typeof doc) == "function") {
+    callback = doc; 
+    doc = null;
+  }
+
   var opts = {url: url, method: "DELETE"};
   var req = new WebRequest(opts);
   
-  return req.start(null, callback);  
+  return req.start(doc, callback);  
 }
 
 exports.put = function(url, doc, callback)
@@ -157,21 +179,31 @@ exports.post = function(url, doc, callback)
 
 // JSON versions
 
-exports.getJSON = function(url, callback)
+exports.getJSON = function(url, doc, callback)
 {
+  if ((typeof doc) == "function") {
+    callback = doc; 
+    doc = null;
+  }
+
   var opts = {url: url, method: "GET", asJSON:true};
   var req = new WebRequest(opts);
   
-  return req.start(null, callback);
+  return req.start(doc, callback);
 }
 
 
-exports.deleteJSON = function(url, callback)
+exports.deleteJSON = function(url, doc, callback)
 {
+  if ((typeof doc) == "function") {
+    callback = doc; 
+    doc = null;
+  }
+
   var opts = {url: url, method: "DELETE", asJSON:true};
   var req = new WebRequest(opts);
   
-  return req.start(null, callback);  
+  return req.start(doc, callback);  
 }
 
 exports.putJSON = function(url, doc, callback)

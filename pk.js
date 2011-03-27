@@ -264,3 +264,63 @@ exports.objLength = function(obj)
   }
   return size;
 }
+
+/**
+ *  Gets a list of all the keys in a given object. Hopefully handy
+ *  for debugging and figuring out the state of an object. Leaves
+ *  out method names
+ */
+exports.propertyNames = function(obj)
+{
+  var keys = [];
+  for(var key in obj)
+  {
+    if(typeof(obj[key]) != "function")
+      keys.push(key);
+  }
+  
+  keys.sort();
+  return keys;
+}
+
+/**
+ *  Returns a list of all the keys and values in the object. Leaves off
+ *  methods
+ */
+exports.propertyNamesAndValues = function(obj)
+{
+  var keysAndValues = "";  
+  var keylist = this.propertyNames(obj);
+  
+  for(var i = 0; i < keylist.length; i++)
+  {
+    var key = keylist[i];
+    keysAndValues += "\n\t" + key + ": " + obj[key]; 
+  
+  }
+  
+  keysAndValues += "\n";
+  
+  return keysAndValues;
+}
+
+/**
+ *  Returns a sorted list of method names available for obj
+ */
+exports.methodNames = function(obj)
+{
+  var methods = [];
+  for(var key in obj)
+    if(typeof(obj[key]) == "function")
+      methods.push(key);
+
+  methods.sort();
+  
+  var methodNames = "";
+  for(var i = 0; i < methods.length; i++)
+    methodNames += "\n\t" + methods[i];
+    
+  methodNames += "\n";
+  
+  return methodNames;
+}

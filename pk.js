@@ -6,186 +6,154 @@ var L = require('log');
 var Crypto = require("crypto");
 
 // Private array of chars to use for uuids
-var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split(''); 
+var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
 
 /**
  * Generates a universally (more or less) uid by creating a random stream
  * of characters. Should be reasonably fine most of the time.
  */
-exports.uuid = function(len) 
-{
-  var len = len || 20;
-  var chars = CHARS;
-  var uuid = [];
-  var radix = chars.length;
-  
-  for (var i = 0; i < len; i++) uuid[i] = chars[0 | Math.random()*radix];
-  return uuid.join('');
+exports.uuid = function(len) {
+    var len = len || 20;
+    var chars = CHARS;
+    var uuid = [];
+    var radix = chars.length;
+
+    for (var i = 0; i < len; i++) uuid[i] = chars[0 | Math.random() * radix];
+    return uuid.join('');
 }
 
 /**
  * Resolve back references (..) and (.) in filesystem paths.
  */
-exports.resolvePath = function(basePath, child)
-{
-  var stack;
-  if (basePath)
-  {
-    stack = basePath.split('/');
-  }
-  else
-  {
-    stack = [];
-  }
-  // L.warni("basePath=",basePath,"child=",child);
-  // L.infoi("Stack is",stack);
-  
-  var list = child.split('/');
-  if (list[0] === '') list.shift();
-  //L.infoi("List is",list);
-  
-  for(var ix = 0; ix<list.length; ix++)
-  {
-    var el = list[ix];
-    if (el === '.')
-    {
-      // Just skip it
+exports.resolvePath = function(basePath, child) {
+    var stack;
+    if (basePath) {
+        stack = basePath.split('/');
+    } else {
+        stack = [];
     }
-    else if (el === '..')
-    {
-      // Pop the previous element from the stack 
-      stack.pop();
-      // And now fail to put this one on the stack
+    // L.warni("basePath=",basePath,"child=",child);
+    // L.infoi("Stack is",stack);
+    var list = child.split('/');
+    if (list[0] === '') list.shift();
+    //L.infoi("List is",list);
+    for (var ix = 0; ix < list.length; ix++) {
+        var el = list[ix];
+        if (el === '.') {
+            // Just skip it
+        } else if (el === '..') {
+            // Pop the previous element from the stack
+            stack.pop();
+            // And now fail to put this one on the stack
+        } else {
+            // Just add this to the stack
+            if (el) stack.push(el);
+        }
     }
-    else
-    {
-      // Just add this to the stack
-      if (el) stack.push(el);
+
+    var result = stack.join('/');
+    if (basePath) {
+        if (basePath[0] === '/' && result[0] !== '/') {
+            result = '/' + result;
+        }
+    } else {
+        if (child[0] === '/' && result[0] !== '/') {
+            result = '/' + result;
+        }
     }
-  }
-  
-  var result = stack.join('/');
-  if (basePath)
-  {
-    if (basePath[0] === '/' && result[0] !== '/')
-    {
-      result = '/' + result;
-    }
-  }
-  else
-  {
-    if (child[0] === '/' && result[0] !== '/')
-    {
-      result = '/' + result;
-    }
-  }
-  
-  return result;
+
+    return result;
 }
 
-exports.stringifyDate = function(date, reference)
-{
-  reference = reference || new Date();
-  
-  var delta = reference - date;
-  var deltaAbs = Math.abs(delta / 1000);
-  
-  var ret = "";
-  
-  // Less than a minute
-  if (deltaAbs < 60)
-  {
-    return "just now";
-  }
-  
-  // One minute to 1 hour
-  if (deltaAbs < 3600)
-  {
-    var minutes = Math.floor(deltaAbs / 60);
-    ret += minutes;
-    ret += " minute";
-    if (minutes > 1)
-    {
-      ret += "s";
+exports.stringifyDate = function(date, reference) {
+    reference = reference || new Date();
+
+    var delta = reference - date;
+    var deltaAbs = Math.abs(delta / 1000);
+
+    var ret = "";
+
+    // Less than a minute
+    if (deltaAbs < 60) {
+        return "just now";
     }
-  }
-  // 1 hour to 24 hours
-  else if (deltaAbs < (24 * 3600))
-  {
-    var hours = Math.floor(deltaAbs / 3600);
-    ret += hours;
-    
-    ret += " hour";
-    if (hours > 1)
-    {
-      ret += "s";
+
+    if (deltaAbs < 3600) {
+        // One minute to 1 hour
+        var minutes = Math.floor(deltaAbs / 60);
+        ret += minutes;
+        ret += " minute";
+        if (minutes > 1) {
+            ret += "s";
+        }
+    } else if (deltaAbs < (24 * 3600)) {
+        // 1 hour to 24 hours
+        var hours = Math.floor(deltaAbs / 3600);
+        ret += hours;
+
+        ret += " hour";
+        if (hours > 1) {
+            ret += "s";
+        }
+    } else if (deltaAbs < (30 * 24 * 3600)) {
+        // 1 day to 1 month
+        var days = Math.floor(deltaAbs / (24 * 3600));
+        ret += "over ";
+        ret += days;
+        ret += " day";
+        if (days > 1) {
+            ret += "s";
+        }
+    } else {
+        var months = Math.floor(deltaAbs / (30 * 24 * 3600));
+        ret += "over ";
+        ret += months;
+        ret += " month";
+        if (months > 1) {
+            ret += "s";
+        }
     }
-  }
-  // 1 day to 1 month
-  else if (deltaAbs < (30 * 24 * 3600))
-  {
-    var days = Math.floor(deltaAbs / (24 * 3600));
-    ret += "over ";
-    ret += days;
-    ret += " day";
-    if (days > 1)
-    {
-      ret += "s";
+
+    if (delta > 0) {
+        ret += " ago";
+    } else {
+        ret += " in the future";
     }
-  }
-  else 
-  {
-    var months = Math.floor(deltaAbs / (30 * 24 * 3600));
-    ret += "over ";
-    ret += months;
-    ret += " month";    
-    if (months > 1)
-    {
-      ret += "s";
-    }
-  }
-  
-  if (delta > 0)
-  {
-    ret += " ago";
-  }
-  else
-  {
-    ret += " in the future";
-  }
-  
-  return ret;
+
+    return ret;
 }
 
 /**
   Turns a date object into a standardized string of the form
   YYYY-MM-DDThh:mm:ss.sTZD
 */
-exports.isoFromDate = function(d)
-{
-  function pad(n){return n<10 ? '0'+n : n}
-  function pad100(n){return n<100 ? '0'+pad(n) : n}
-  
-  return d.getUTCFullYear()+'-'
-       + pad(d.getUTCMonth()+1)+'-'
-       + pad(d.getUTCDate())+'T'
-       + pad(d.getUTCHours())+':'
-       + pad(d.getUTCMinutes())+':'
-       + pad(d.getUTCSeconds())+'.'
-       + pad(d.getUTCMilliseconds())+'Z';
+exports.isoFromDate = function(d) {
+    function pad(n) {
+        return n < 10 ? '0' + n: n
+    }
+    function pad100(n) {
+        return n < 100 ? '0' + pad(n) : n
+    }
+
+    return d.getUTCFullYear() + '-'
+    + pad(d.getUTCMonth() + 1) + '-'
+    + pad(d.getUTCDate()) + 'T'
+    + pad(d.getUTCHours()) + ':'
+    + pad(d.getUTCMinutes()) + ':'
+    + pad(d.getUTCSeconds()) + '.'
+    + pad(d.getUTCMilliseconds()) + 'Z';
 }
 
 /**
   Given a particular salt and password, return the hashed version.
   Standardized this here so it is usable for both checking and inserting password hashes.
 */
-exports.hashPassword = function(password, salt)
-{
-  var hasher = Crypto.createHash("sha1");
-  hasher.update(salt);
-  hasher.update(password);
+exports.hashPassword = function(password, salt) {
+    var hasher = Crypto.createHash("sha1");
+    hasher.update(salt);
+    hasher.update(password);
 
-  return hasher.digest("base64");
+    return hasher.digest("base64");
 }
 
 /**
@@ -194,15 +162,13 @@ exports.hashPassword = function(password, salt)
   where state must be modified later or something then a copy might not make
   sense, but that's not this routine's fault :P
 */
-exports.deepCopy = function(src)
-{
-  if(typeof(src) != "object" || src == null)  return src;
-  var newInstance = src.constructor();
-  for(var i in src)
-  {
-    newInstance[i] = exports.deepCopy(src[i]);
-  }
-  return newInstance;
+exports.deepCopy = function(src) {
+    if (typeof(src) != "object" || src == null) return src;
+    var newInstance = src.constructor();
+    for (var i in src) {
+        newInstance[i] = exports.deepCopy(src[i]);
+    }
+    return newInstance;
 }
 
 /**
@@ -215,14 +181,13 @@ exports.deepCopy = function(src)
  * @returns the value of the uint32
  * @type uint32
  */
-exports.readUInt32 = function(buffer, off)
-{
-  if (!off) off = 0;
-  var out = buffer[off];
-  out = (out << 8) + buffer[off+1];
-  out = (out << 8) + buffer[off+2];
-  out = (out << 8) + buffer[off+3];
-  return out;
+exports.readUInt32 = function(buffer, off) {
+    if (!off) off = 0;
+    var out = buffer[off];
+    out = (out << 8) + buffer[off + 1];
+    out = (out << 8) + buffer[off + 2];
+    out = (out << 8) + buffer[off + 3];
+    return out;
 }
 
 /**
@@ -234,14 +199,13 @@ exports.readUInt32 = function(buffer, off)
  * @param {uint32} value - The value to write
  * @type void
  */
-exports.writeUInt32 = function(value, buffer, off)
-{
-  if (!off) off = 0;
-  
-  buffer[off]   = (value >> 24) & 0x00ff;
-  buffer[off+1] = (value >> 16) & 0x00ff;
-  buffer[off+2] = (value >>  8) & 0x00ff;
-  buffer[off+3] = (value      ) & 0x00ff;
+exports.writeUInt32 = function(value, buffer, off) {
+    if (!off) off = 0;
+
+    buffer[off] = (value >> 24) & 0x00ff;
+    buffer[off + 1] = (value >> 16) & 0x00ff;
+    buffer[off + 2] = (value >> 8) & 0x00ff;
+    buffer[off + 3] = (value) & 0x00ff;
 }
 
 /**
@@ -256,13 +220,12 @@ exports.writeUInt32 = function(value, buffer, off)
  * @returns The count of the keys attached to the object
  * @type int
  */
-exports.objLength = function(obj)
-{
-  var size = 0;
-  for (var key in obj) {
-      if (obj.hasOwnProperty(key)) size++;
-  }
-  return size;
+exports.objLength = function(obj) {
+    var size = 0;
+    for (var key in obj) {
+        if (obj.hasOwnProperty(key)) size++;
+    }
+    return size;
 }
 
 /**
@@ -270,57 +233,53 @@ exports.objLength = function(obj)
  *  for debugging and figuring out the state of an object. Leaves
  *  out method names
  */
-exports.propertyNames = function(obj)
-{
-  var keys = [];
-  for(var key in obj)
-  {
-    if(typeof(obj[key]) != "function")
-      keys.push(key);
-  }
-  
-  keys.sort();
-  return keys;
+exports.propertyNames = function(obj) {
+    var keys = [];
+    for (var key in obj) {
+        if (typeof(obj[key]) != "function")
+        keys.push(key);
+    }
+
+    keys.sort();
+    return keys;
 }
 
 /**
  *  Returns a list of all the keys and values in the object. Leaves off
  *  methods
  */
-exports.propertyNamesAndValues = function(obj)
-{
-  var keysAndValues = "";  
-  var keylist = this.propertyNames(obj);
-  
-  for(var i = 0; i < keylist.length; i++)
-  {
-    var key = keylist[i];
-    keysAndValues += "\n\t" + key + ": " + obj[key]; 
-  
-  }
-  
-  keysAndValues += "\n";
-  
-  return keysAndValues;
+exports.propertyNamesAndValues = function(obj) {
+    var keysAndValues = "";
+    var keylist = this.propertyNames(obj);
+
+    for (var i = 0; i < keylist.length; i++) {
+        var key = keylist[i];
+        keysAndValues += "\n\t" + key + ": " + obj[key];
+    }
+
+    keysAndValues += "\n";
+
+    return keysAndValues;
 }
 
 /**
  *  Returns a sorted list of method names available for obj
  */
 exports.methodNames = function(obj)
-{
-  var methods = [];
-  for(var key in obj)
-    if(typeof(obj[key]) == "function")
-      methods.push(key);
+ {
+    var methods = [];
+    for (var key in obj)
+    if (typeof(obj[key]) == "function")
+    methods.push(key);
 
-  methods.sort();
-  
-  var methodNames = "";
-  for(var i = 0; i < methods.length; i++)
-    methodNames += "\n\t" + methods[i];
+    methods.sort();
+
+    var methodNames = "";
+    for (var i = 0; i < methods.length; i++) {
+        methodNames += "\n\t" + methods[i];
+    }
     
-  methodNames += "\n";
-  
-  return methodNames;
+    methodNames += "\n";
+
+    return methodNames;
 }

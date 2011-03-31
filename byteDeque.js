@@ -23,28 +23,24 @@ var ByteChunk = require("./byteChunk");
  * @constructor
  */
 
-function ByteDeque(chunkSize, max, maxEmptyChunks)
-{
-  this.cacheTail = (maxEmptyChunks==Number.MAX_VALUE);
-  this.head = ByteChunk.create(chunkSize, maxEmptyChunks);
-  this.tail = this.head;
-  this.max = max;
-  this.size = 0;
+function ByteDeque(chunkSize, max, maxEmptyChunks) {
+    this.cacheTail = (maxEmptyChunks==Number.MAX_VALUE);
+    this.head = ByteChunk.create(chunkSize, maxEmptyChunks);
+    this.tail = this.head;
+    this.max = max;
+    this.size = 0;
 }
 
-exports.createFull = function(chunkSize, max, maxEmptyChunks)
-{
-  return new ByteDeque(chunkSize, max, maxEmptyChunks);
+exports.createFull = function(chunkSize, max, maxEmptyChunks) {
+    return new ByteDeque(chunkSize, max, maxEmptyChunks);
 }
 
-exports.createSimple = function(chunkSize, max)
-{
-  return new ByteDeque(chunkSize, max, 10);
+exports.createSimple = function(chunkSize, max) {
+    return new ByteDeque(chunkSize, max, 10);
 }
 
-exports.create = function()
-{
-  return new ByteDeque(2048, -1, 10);
+exports.create = function() {
+    return new ByteDeque(2048, -1, 10);
 }
 
 /**
@@ -54,33 +50,27 @@ exports.create = function()
  * @throws Error if the max size of the buffer would be exceeded by this write.
  * @type void
  */
-ByteDeque.prototype.write = function(ba, off, len)
-{
-  if (!ba) return;
-  
-  if (this.max > -1)
-  {
-    if ( (ba.length + this.size) > this.size )
-    {
-      throw new Error("Max size is "+this.max+" and already have "+this.size);
+ByteDeque.prototype.write = function(ba, off, len) {
+    if (!ba) return;
+
+    if (this.max > -1) {
+        if ( (ba.length + this.size) > this.size ) {
+            throw new Error("Max size is "+this.max+" and already have "+this.size);
+        }
     }
-  }
-  
-  // We can only cache the tail if we know the byte chunks will never be dropped. That's
-  // more efficient, but the size grows over time
-  if (this.cacheTail)
-  {
-    this.tail = this.tail.write(ba, off, len);
-  }
-  else
-  {
-    // Put the write in at the head. This will trickle down to the tail, but that
-    // could be a long amount of recursing if the chain is long
-    this.head = this.head.getHead();
-    this.head.write(ba,off,len);
-  }
-  
-  this.size += len;
+
+    // We can only cache the tail if we know the byte chunks will never be dropped. That's
+    // more efficient, but the size grows over time
+    if (this.cacheTail) {
+        this.tail = this.tail.write(ba, off, len);
+    } else {
+        // Put the write in at the head. This will trickle down to the tail, but that
+        // could be a long amount of recursing if the chain is long
+        this.head = this.head.getHead();
+        this.head.write(ba,off,len);
+    }
+
+    this.size += len;
 }
 
 /**
@@ -90,9 +80,8 @@ ByteDeque.prototype.write = function(ba, off, len)
  * @param {Buffer} buffer - The buffer to write
  * @type void
  */
-ByteDeque.prototype.writeBuffer = function(buffer)
-{
-  this.write(buffer, 0, buffer.length);
+ByteDeque.prototype.writeBuffer = function(buffer) {
+    this.write(buffer, 0, buffer.length);
 }
 
 
@@ -102,18 +91,14 @@ ByteDeque.prototype.writeBuffer = function(buffer)
  * @param {int} val - The single byte 0-255 to write
  * @type void
  */
-ByteDeque.prototype.writeByte = function(val)
-{
-  if (this.cacheTail)
-  {
-    this.tail = this.tail.writeByte(val)
-  }
-  else
-  {
-    this.head = this.head.getHead();
-    this.head.writeByte(val);
-  }
-  this.size += 1;
+ByteDeque.prototype.writeByte = function(val) {
+    if (this.cacheTail) {
+        this.tail = this.tail.writeByte(val)
+    } else {
+        this.head = this.head.getHead();
+        this.head.writeByte(val);
+    }
+    this.size += 1;
 }
 
 /**
@@ -127,14 +112,13 @@ ByteDeque.prototype.writeByte = function(val)
  * @returns The amount actually read
  * @type int
  */
-ByteDeque.prototype.read = function(ba,off,len)
-{
-  this.head = this.head.getHead();
-  
-  var aread = this.head.read(ba,off,len);
-  
-  this.size -= aread;
-  return aread;
+ByteDeque.prototype.read = function(ba,off,len) {
+    this.head = this.head.getHead();
+
+    var aread = this.head.read(ba,off,len);
+
+    this.size -= aread;
+    return aread;
 }
 
 /**
@@ -144,9 +128,8 @@ ByteDeque.prototype.read = function(ba,off,len)
  * @returns The amount actually read
  * @type int
  */
-ByteDeque.prototype.readBuffer = function(buffer)
-{
-  return this.read(buffer,0,buffer.length);
+ByteDeque.prototype.readBuffer = function(buffer) {
+    return this.read(buffer,0,buffer.length);
 }
 
 /**
@@ -157,11 +140,10 @@ ByteDeque.prototype.readBuffer = function(buffer)
  * @returns The byte read or -1 if there are no bytes
  * @type int
  */
-ByteDeque.prototype.readByte = function()
-{
-  this.head = head.getHead();
-  this.size -= 1;
-  return this.head.readByte();
+ByteDeque.prototype.readByte = function() {
+    this.head = head.getHead();
+    this.size -= 1;
+    return this.head.readByte();
 }
 
 /**
@@ -172,10 +154,9 @@ ByteDeque.prototype.readByte = function()
  * @returns The calculated total size of the deque
  * @type int
  */
-ByteDeque.prototype.getSize = function()
-{
-  this.head = this.head.getHead();
-  return this.head.getSize();
+ByteDeque.prototype.getSize = function() {
+    this.head = this.head.getHead();
+    return this.head.getSize();
 }
 
 /**
@@ -184,8 +165,7 @@ ByteDeque.prototype.getSize = function()
  * @returns The cached size of the bytes in the deque.
  * @type int
  */
-ByteDeque.prototype.getLength = function()
-{
-  return this.size;
+ByteDeque.prototype.getLength = function() {
+    return this.size;
 }
 

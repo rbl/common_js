@@ -4,7 +4,7 @@
 var Util = require("util");
 var Events = require("events");
 
-var L = require("log");
+var Logger = require("logger");
 var PK = require("pk");
 var Queue = require("./queue");
 
@@ -56,15 +56,15 @@ ServerConnection.prototype.preDispatchAuthenticator = function(msg) {
         return true;
     }
 
-    L.infoi("Attempting authentication using", msg);
+    Logger.infoi("Attempting authentication using", msg);
     if (msg.type !== "oauth") {
-        L.warni("While unauthenticated, ignoring message because it's the wrong type", msg);
+        Logger.warni("While unauthenticated, ignoring message because it's the wrong type", msg);
         return false;
     }
 
     var token = msg.oauth_token;
     if (!token) {
-        L.warni("Authentication message has no oauth_token. Sending an error message", token);
+        Logger.warni("Authentication message has no oauth_token. Sending an error message", token);
         this.queue.sendMessage({
             type: "error",
             description: "No oauth_token in authentication message"
@@ -78,7 +78,7 @@ ServerConnection.prototype.preDispatchAuthenticator = function(msg) {
     // identity along with it's associated authorizations.
     var ident = msg.ident || PK.uuid();
     if (!this.parent.registerConnection(token, ident, this)) {
-        L.warni("Authentication failed for", token);
+        Logger.warni("Authentication failed for", token);
         this.queue.sendMessage({
             type: "error",
             description: "Invalid authentication token"
@@ -98,7 +98,7 @@ ServerConnection.prototype.preDispatchAuthenticator = function(msg) {
 
 ServerConnection.prototype.queueClosed = function(hadError) {
     // Drop the stream and try to restart the message queue
-    L.log("queue closed, hadError", hadError);
+    Logger.log("queue closed, hadError", hadError);
 
     // Pass on the close event. This should unregister us from that token and stuff
     this.emit("close");

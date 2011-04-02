@@ -2,7 +2,7 @@ console.log("Beginning in "+__dirname);
 require.paths.unshift(__dirname);
 require.paths.unshift(__dirname + '/..');
 
-var L = require("log");
+var Logger = require("logger");
 var PK = require("pk");
 var ByteChunk = require("byteChunk");
 
@@ -23,7 +23,7 @@ var tten = new Buffer(10);
 // head = head.getHead();
 // var i = head.read(tthirty, 0, 5);
 // 
-// L.logi("Read",i," : ",tthirty.slice(0,i));
+// Logger.logi("Read",i," : ",tthirty.slice(0,i));
 // 
 // tail = tail.write(twenty, 10, 10);
 // tail = tail.write(twenty, 10, 10);
@@ -37,27 +37,27 @@ var tten = new Buffer(10);
 //   head = head.getHead();
 //   head.write(four, 0, 4);
 // 
-//   L.logi("Read",i," : ",tthirty.slice(0,i));  
+//   Logger.logi("Read",i," : ",tthirty.slice(0,i));  
 // }
 
 function testWriteFour()
 {
-  L.log("testWriteFour()");
+  Logger.log("testWriteFour()");
   var head = ByteChunk.create(5,0);
   
   head.write(four,0,4);
-  L.log("size=",head.getSize());
+  Logger.log("size=",head.getSize());
   
   head = head.getHead();
   var count = head.read(tthirty, 0, 5);
   
-  L.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
-  L.log("size=",head.getSize());
+  Logger.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
+  Logger.log("size=",head.getSize());
 }
 
 function testWriteFourFive()
 {
-  L.log("testWriteFourFive()");
+  Logger.log("testWriteFourFive()");
   var head = ByteChunk.create(5,0);
   
   head.write(four,0,4);
@@ -66,14 +66,14 @@ function testWriteFourFive()
   head = head.getHead();
   var count = head.read(tthirty, 0, 5);
   
-  L.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
+  Logger.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
   
 }
 
 
 function testWriteTwenties()
 {
-  L.log("testWriteTwenties()");
+  Logger.log("testWriteTwenties()");
   
   var head = ByteChunk.create(5,0);
   
@@ -81,7 +81,7 @@ function testWriteTwenties()
   
   head = head.getHead();
   var count = head.read(tthirty, 0, 5);  
-  L.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
+  Logger.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
   
   head.write(twenty,10,10);
   head.write(twenty,10,10);
@@ -90,14 +90,14 @@ function testWriteTwenties()
   //Now read a bunch of stuffs
   for (var x=0; x<=20; x++)
   {
-    L.logi("Iteration",x)
+    Logger.logi("Iteration",x)
     head = head.getHead();
-    L.logi("Trying to read 10 bytes");
+    Logger.logi("Trying to read 10 bytes");
     count = head.read(tten,0,10);
-    L.logi("Read",count," bytes >",tten.slice(0,count).toString(), "<");
+    Logger.logi("Read",count," bytes >",tten.slice(0,count).toString(), "<");
   
     head = head.getHead();
-    L.logi("Writting 4 more bytes, size is ",head.getSize());
+    Logger.logi("Writting 4 more bytes, size is ",head.getSize());
     head.write(four, 0, 4);
   }
 }

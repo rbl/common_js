@@ -2,7 +2,7 @@ console.log("Beginning in "+__dirname);
 require.paths.unshift(__dirname);
 require.paths.unshift(__dirname + '/..');
 
-var L = require("log");
+var Logger = require("logger");
 var PK = require("pk");
 var ByteDeque = require("byteDeque");
 
@@ -18,18 +18,18 @@ var tten = new Buffer(10);
 
 function testWriteFour()
 {
-  L.log("testWriteFour()");
+  Logger.log("testWriteFour()");
   var que = ByteDeque.create();
   que.write(four,0,4);
   
   var count = que.read(tthirty, 0, 5);
   
-  L.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
+  Logger.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
 }
 
 function testWriteFourFive()
 {
-  L.log("testWriteFourFive()");
+  Logger.log("testWriteFourFive()");
   var que = ByteDeque.create();
   
   que.write(four,0,4);
@@ -37,21 +37,21 @@ function testWriteFourFive()
   
   var count = que.read(tthirty, 0, 5);
   
-  L.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
+  Logger.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
   
 }
 
 
 function testWriteTwenties()
 {
-  L.log("testWriteTwenties()");
+  Logger.log("testWriteTwenties()");
   
   var que = ByteDeque.create();
   
   que.write(twenty,10,10);
   
   var count = que.read(tthirty, 0, 5);  
-  L.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
+  Logger.logi("Read",count," bytes >",tthirty.slice(0,count).toString(), "<");
   
   que.write(twenty,10,10);
   que.write(twenty,10,10);
@@ -60,12 +60,12 @@ function testWriteTwenties()
   //Now read a bunch of stuffs
   for (var x=0; x<=20; x++)
   {
-    L.logi("Iteration",x)
-    L.logi("Trying to read 10 bytes");
+    Logger.logi("Iteration",x)
+    Logger.logi("Trying to read 10 bytes");
     count = que.read(tten,0,10);
-    L.logi("Read",count," bytes >",tten.slice(0,count).toString(), "<");
+    Logger.logi("Read",count," bytes >",tten.slice(0,count).toString(), "<");
   
-    L.logi("Writting 4 more bytes, size is ",que.getSize()," length is ",que.getLength(),que.size);
+    Logger.logi("Writting 4 more bytes, size is ",que.getSize()," length is ",que.getLength(),que.size);
     que.write(four, 0, 4);
   }
 }

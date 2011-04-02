@@ -1,7 +1,7 @@
 /**
  * Module Dependencies
  */
-var L = require("log");
+var Logger = require("logger");
 var JSON = require("json");
 var Tokens = require("tokens");
 
@@ -38,7 +38,7 @@ exports.sendJSON = function(res,obj,code) {
  * @type void
  */
 exports.sendJSONError = function(res, error, description, code) {
-    L.error("Sending JSON Error",error,description);
+    Logger.error("Sending JSON Error",error,description);
     var result = {
         error: error,
         error_description: description
@@ -63,19 +63,19 @@ exports.sendJSONError = function(res, error, description, code) {
  * @type void
  */
 exports.validate = function(req,res,meta,target) {
-    L.debug("validate");
+    Logger.debug("validate");
     var toCheck = meta.params;
 
     // See if they are requesting meta data
     if (req.param("meta")) {
-        L.debug("Sending meta information");
+        Logger.debug("Sending meta information");
         return exports.sendJSON(res, meta);
     }
 
     // Are there parameters needed?
     if (!toCheck) {
         // Nothing to do, pass it on
-        L.debugi("No parameters to check, target is",target);
+        Logger.debugi("No parameters to check, target is",target);
 
         return target(req,res);
     }
@@ -86,11 +86,11 @@ exports.validate = function(req,res,meta,target) {
     // access tokens we actually want to redirect to the URI (as long as there is one).
     // Check for the presence of each required parameter
     for (key in toCheck) {
-        L.debug("Checking key", key);
+        Logger.debug("Checking key", key);
         var keyDesc = toCheck[key];
         if (keyDesc.required) {
             var value = req.param(key);
-            L.debugi("  it is required, value=",value);
+            Logger.debugi("  it is required, value=",value);
             if (!value) {
                 var result = {
                     error: "Required parameter is missing",
@@ -101,7 +101,7 @@ exports.validate = function(req,res,meta,target) {
                 return exports.sendJSON(res, result);
             }
         } else {
-            L.debugi("  - is not required");
+            Logger.debugi("  - is not required");
         }
     }
 
@@ -138,7 +138,7 @@ exports.register = function(app, name, controller, config) {
             endpoint += "/" + data.endpoint;
         }
 
-        L.info("endpoint = ",endpoint);
+        Logger.info("endpoint = ",endpoint);
 
         var methods;
         if (data.methods) {
@@ -153,7 +153,7 @@ exports.register = function(app, name, controller, config) {
         }
 
         if (data.required_scope) {
-            L.info("  requires scope",data.required_scope)
+            Logger.info("  requires scope",data.required_scope)
             for(var ix = 0; ix<methods.length; ix++) {
                 var method = methods[ix];
                 app[method](endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
@@ -164,7 +164,7 @@ exports.register = function(app, name, controller, config) {
             // app.put(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
             // app.delete(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
         } else {
-            L.info("  No scope required")
+            Logger.info("  No scope required")
             for(var ix = 0; ix<methods.length; ix++) {
                 var method = methods[ix];
                 app[method](endpoint, controller[key]);

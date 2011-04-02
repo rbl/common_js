@@ -5,7 +5,7 @@ var Net = require("net");
 var Util = require("util");
 var Events = require("events");
 
-var L = require("log");
+var Logger = require("logger");
 var PK = require("pk");
 var ByteChunk = require("./byteChunk");
 

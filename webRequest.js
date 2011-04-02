@@ -1,12 +1,12 @@
 var URL = require("url");
 var Http = require("http");
 var Sys = require("sys");
-var L = require("log");
+var Logger = require("logger");
 var JSON = require("json");
 var QueryString = require("querystring")
 
- var WebRequest = function WebRequest(opts)
- {
+var WebRequest = function WebRequest(opts)
+{
     if (!opts) throw new Error("WebRequest requires opts hash as it's only argument");
     if (!opts.url) throw new Error("WebRequest requires a url option");
 
@@ -29,7 +29,7 @@ WebRequest.prototype.start = function(body, callback) {
     if (!this.url.port) this.url.port = 80;
     var asJSON = this.asJSON;
 
-    L.debugi("WebRequest.start()", this.method, this.url.host, this.url.port, this.url.pathname)
+    Logger.debugi("WebRequest.start()", this.method, this.url.host, this.url.port, this.url.pathname)
 
     // Todo, in the future cache these. For now, make them all new
     var client = Http.createClient(this.url.port, this.url.hostname);
@@ -57,16 +57,16 @@ WebRequest.prototype.start = function(body, callback) {
     var bodyContent;
     if (body) {
         if (asJSON) {
-            L.debug('Writing body, encoding as JSON');
+            Logger.debug('Writing body, encoding as JSON');
             bodyContent = JSON.stringify(body);
             headers["Content-Type"] = "application/json";
         } else {
             if (typeof body === "object") {
-                L.debug("Writing body, encoding using query string");
+                Logger.debug("Writing body, encoding using query string");
                 bodyContent = QueryString.encode(body);
                 headers["Content-Type"] = "application/x-www-form-urlencoded";
             } else {
-                L.debug('Writing body, no additional encoding');
+                Logger.debug('Writing body, no additional encoding');
                 bodyContent = body;
                 headers["Content-Type"] = "text/plain";
             }
@@ -88,7 +88,7 @@ WebRequest.prototype.start = function(body, callback) {
         //   if (callback) return callback(new Error("Got server response "+response.statusCode), null);
         // }
         //
-        L.log('Response code is ', response.statusCode);
+        Logger.log('Response code is ', response.statusCode);
         response.setEncoding('utf8');
         response.on('data', function(chunk) {
             responseBuffer += chunk;
@@ -97,10 +97,10 @@ WebRequest.prototype.start = function(body, callback) {
         response.on('end',
         function() {
             // Hand the entire response to the callback
-            L.log('Got end event');
+            Logger.log('Got end event');
             if (callback) {
                 if (responseBuffer && responseBuffer.length && asJSON) {
-                    L.logi("Response be", responseBuffer);
+                    Logger.logi("Response be", responseBuffer);
                     return callback(null, response, JSON.parse(responseBuffer));
                 } else {
                     return callback(null, response, responseBuffer);
@@ -113,7 +113,7 @@ WebRequest.prototype.start = function(body, callback) {
         if (callback) {
             return callback(error);
         }
-        L.errori("HttpClient on 'error'", error);
+        Logger.errori("HttpClient on 'error'", error);
     });
 }
 

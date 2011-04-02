@@ -2,7 +2,7 @@
  * A PocketKnife of useful little things
  */
 
-var L = require('log');
+var Logger = require('logger');
 var Crypto = require("crypto");
 
 // Private array of chars to use for uuids
@@ -32,8 +32,8 @@ exports.resolvePath = function(basePath, child) {
     } else {
         stack = [];
     }
-    // L.warni("basePath=",basePath,"child=",child);
-    // L.infoi("Stack is",stack);
+    // Logger.warni("basePath=",basePath,"child=",child);
+    // Logger.infoi("Stack is",stack);
     var list = child.split('/');
     if (list[0] === '') list.shift();
     //L.infoi("List is",list);

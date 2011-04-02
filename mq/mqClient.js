@@ -7,7 +7,7 @@ var Os = require("os");
 var Util = require("util");
 var Events = require("events");
 
-var L = require("log");
+var Logger = require("logger");
 var WebRequest = require("webRequest");
 var PK = require("pk");
 var Queue = require("./queue");
@@ -73,7 +73,7 @@ MQClient.prototype.createIdentity = function(next) {
 
 
 MQClient.prototype.streamConnect = function() {
-    L.logi("MessageQueue.streamConnect");
+    Logger.logi("MessageQueue.streamConnect");
 
     // Always send the oauth token as the first message. We can stack other things
     // up behind it, but if the server hates our token it will just nuke the stream.
@@ -86,12 +86,12 @@ MQClient.prototype.streamConnect = function() {
 }
 
 MQClient.prototype.streamError = function(error) {
-    L.logi("MessageQueue.streamError", error)
+    Logger.logi("MessageQueue.streamError", error)
     this.emit("error", error);
 }
 
 MQClient.prototype.queueClose = function(hadError) {
-    L.logi("MQClient.queueClose");
+    Logger.logi("MQClient.queueClose");
 
     this.queue = null;
 
@@ -101,11 +101,11 @@ MQClient.prototype.queueClose = function(hadError) {
 
 MQClient.prototype.startStream = function() {
     if (this.queue) {
-        L.warni("A queue already exists. Not trying to start a new one");
+        Logger.warni("A queue already exists. Not trying to start a new one");
         return;
     }
 
-    L.log("Starting a new stream connection to", this.streamConfig.host, ":", this.streamConfig.port);
+    Logger.log("Starting a new stream connection to", this.streamConfig.host, ":", this.streamConfig.port);
 
     var stream = Net.createConnection(this.streamConfig.port, this.streamConfig.host);
 
@@ -130,7 +130,7 @@ MQClient.prototype.startStream = function() {
 }
 
 MQClient.prototype.start = function(callback) {
-    L.infoi("Starting messageQueue with configuration endpoint", this.config.url);
+    Logger.infoi("Starting messageQueue with configuration endpoint", this.config.url);
 
     // Get an OAuth token
     var client_credentials = {

@@ -5,7 +5,7 @@ var Net = require("net");
 var Util = require("util");
 var Events = require("events");
 
-var L = require("log");
+var Logger = require("logger");
 var PK = require("pk");
 var ByteDeque = require("byteDeque");
 
@@ -47,8 +47,8 @@ function Queue(stream) {
 
     // This makes it so we gets strings in the "data" event
     //stream.setEncoding("utf8");
-    L.logi("Queue() constructor")
-    L.logi("writable = ", this.stream.writable)
+    Logger.logi("Queue() constructor")
+    Logger.logi("writable = ", this.stream.writable)
 }
 
 Util.inherits(Queue, Events.EventEmitter);
@@ -64,8 +64,8 @@ module.exports.create = function(stream) {
  * @type void
  */
 Queue.prototype.streamConnect = function() {
-    L.logi("streamConnect in Queue ...");
-    L.logi("writable = ", this.stream.writable)
+    Logger.logi("streamConnect in Queue ...");
+    Logger.logi("writable = ", this.stream.writable)
 }
 
 /**
@@ -76,12 +76,12 @@ Queue.prototype.streamConnect = function() {
  * @type void
  */
 Queue.prototype.streamData = function(data) {
-    L.logi("streamData", data);
+    Logger.logi("streamData", data);
 
     // Add it to the deque
     this.deque.writeBuffer(data);
 
-    L.logi("this.deque.getLength()=", this.deque.getLength())
+    Logger.logi("this.deque.getLength()=", this.deque.getLength())
     // If we have enough data, dispatch to the next parsing function
     while (this.deque.getLength() >= this.amtRequired) {
         this.nextParseFunction();
@@ -96,7 +96,7 @@ Queue.prototype.streamData = function(data) {
  * @type void
  */
 Queue.prototype.streamDrain = function() {
-    L.debugi("streamDrain");
+    Logger.debugi("streamDrain");
 
 }
 
@@ -106,7 +106,7 @@ Queue.prototype.streamDrain = function() {
  * @type void
  */
 Queue.prototype.streamEnd = function() {
-    L.debugi("streamEnd");
+    Logger.debugi("streamEnd");
 
 }
 
@@ -116,7 +116,7 @@ Queue.prototype.streamEnd = function() {
  * @type void
  */
 Queue.prototype.streamTimeout = function() {
-    L.debugi("streamTimeout");
+    Logger.debugi("streamTimeout");
 
 }
 
@@ -128,10 +128,10 @@ Queue.prototype.streamTimeout = function() {
  */
 Queue.prototype.streamError = function(exception) {
     if (exception.stack) {
-        L.error("Error on the stream");
-        L.errori(exception.stack);
+        Logger.error("Error on the stream");
+        Logger.errori(exception.stack);
     } else {
-        L.errori("Error on the stream:", exception)
+        Logger.errori("Error on the stream:", exception)
     }
 }
 
@@ -143,7 +143,7 @@ Queue.prototype.streamError = function(exception) {
  */
 Queue.prototype.streamClose = function(hadError) {
     // Drop the stream and try to restart the message queue
-    L.log("stream closed, hadError", hadError);
+    Logger.log("stream closed, hadError", hadError);
     this.stream = null;
     // Rebroadcast this event
     this.emit("close", hadError);
@@ -199,11 +199,11 @@ Queue.prototype.getNewChannel = function() {
  */
 Queue.prototype.sendDataOnChannel = function(data, channel) {
     if (typeof channel == 'undefined') {
-        L.hr();
-        L.errori("Attempting to send", data.length, "bytes on undefined channel. Boo!");
-        L.logStack();
+        Logger.hr();
+        Logger.errori("Attempting to send", data.length, "bytes on undefined channel. Boo!");
+        Logger.logStack();
     }
-    L.logi("sending", data.length, "bytes of data on channel", channel);
+    Logger.logi("sending", data.length, "bytes of data on channel", channel);
 
     if (! (data instanceof Buffer)) {
         data = Buffer(data.toString());
@@ -215,7 +215,7 @@ Queue.prototype.sendDataOnChannel = function(data, channel) {
 
     // First 4 bytes are the channel
     PK.writeUInt32(channel, this.channelTemp);
-    L.logi("channelTemp is", this.channelTemp);
+    Logger.logi("channelTemp is", this.channelTemp);
     this.stream.write(this.channelTemp);
 
     // The data itself
@@ -234,7 +234,7 @@ Queue.prototype.registerHandlers = function(handlers) {
     for (key in handlers) {
         var handler = handlers[key];
         (function(self, key, handler) {
-            L.logi("Registering", key, "to handler", handler);
+            Logger.logi("Registering", key, "to handler", handler);
             self.on("message",
             function(msg) {
                 if (msg.type === key) handler.handle(self, msg);
@@ -262,11 +262,11 @@ Queue.prototype.parseChannel = function() {
         throw new Error("Failed to read 4 bytes for PDU payload length");
     }
     this.amtRequired = PK.readUInt32(this.channelTemp);
-    L.logi("length is ", this.amtRequired);
+    Logger.logi("length is ", this.amtRequired);
 
     if (this.amtRequired < 4) {
         // WTF mate?
-        L.warni("Got weird payload length", this.amtRequired, ". Reading and trying to continue, but probably will go bad soon.")
+        Logger.warni("Got weird payload length", this.amtRequired, ". Reading and trying to continue, but probably will go bad soon.")
         this.deque.readBuffer(this.channelTemp, 0, this.amtRequired);
         this.setParseStateGround();
         return;
@@ -278,11 +278,11 @@ Queue.prototype.parseChannel = function() {
         throw new Error("Failed to read 4 bytes for PDU payload length");
     }
     this.incomingChannel = PK.readUInt32(this.channelTemp);
-    L.logi("Incoming channel is", this.incomingChannel);
+    Logger.logi("Incoming channel is", this.incomingChannel);
 
     // Reduce the amt required
     this.amtRequired -= 4;
-    L.logi("Remaining data is", this.amtRequired);
+    Logger.logi("Remaining data is", this.amtRequired);
     this.nextParseFunction = this.parsePayload;
 }
 
@@ -308,7 +308,7 @@ Queue.prototype.parsePayload = function() {
 }
 
 Queue.prototype.dispatchMessage = function() {
-    L.logi("Dispatching message");
+    Logger.logi("Dispatching message");
     try {
         data = this.incomingBuffer.slice(0, this.amtRequired);
         var msg = JSON.parse(data);
@@ -316,31 +316,31 @@ Queue.prototype.dispatchMessage = function() {
         // Allow a preDispatchHook to pre-process or otherwise veto the dispatching
         if (this.preDispatchHook) {
             if (!this.preDispatchHook(msg)) {
-                L.debugi("Pre-dispatch hook returned false, skipping dispatch");
+                Logger.debugi("Pre-dispatch hook returned false, skipping dispatch");
                 return;
             }
         }
 
-        L.infoi("Dispatching message", msg);
+        Logger.infoi("Dispatching message", msg);
         this.emit("message", msg);
     } catch(err) {
-        L.warni("Error during message dispatch", err);
+        Logger.warni("Error during message dispatch", err);
         if (err.stack) {
-            L.warni(err.stack);
+            Logger.warni(err.stack);
         }
         this.emit("messageException", err);
     }
 }
 
 Queue.prototype.dispatchData = function() {
-    L.logi("Dispatching data, channel=", this.incomingChannel, "size=", this.amtRequired);
+    Logger.logi("Dispatching data, channel=", this.incomingChannel, "size=", this.amtRequired);
     try {
         data = this.incomingBuffer.slice(0, this.amtRequired);
         this.emit("c" + this.incomingChannel, data);
     } catch(err) {
-        L.warni("Error during channel", this.incomingChannel, "dispatch", err);
+        Logger.warni("Error during channel", this.incomingChannel, "dispatch", err);
         if (err.stack) {
-            L.warni(err.stack);
+            Logger.warni(err.stack);
         }
         this.emit("dataException", err);
     }

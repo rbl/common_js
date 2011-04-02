@@ -8,7 +8,7 @@ var JSON = require("json");
 
 var WebRequest = require("webRequest");
 var PK = require("pk");
-var L = require("log");
+var Logger = require("logger");
 
 (function(module) {
   
@@ -68,12 +68,12 @@ var L = require("log");
  
   function sendDocument(url, doc, callback, resolver, retry_count)
   {
-    L.debug("Sending doc to ",url,"retry_count=",retry_count);
+    Logger.debug("Sending doc to ",url,"retry_count=",retry_count);
     WebRequest.put(url, JSON.stringify(doc), function(err, res, content)
     {
       if (err)
       {
-        L.debug("Got error", err)
+        Logger.debug("Got error", err)
         if (retry_count > 5)
         {
           // Screw it, that's a permanent error
@@ -122,7 +122,7 @@ var L = require("log");
       var id = null;
       if (content && content.length)
       {
-        L.debug("Got response",content);
+        Logger.debug("Got response",content);
         var response = JSON.parse(content);
         doc._id = response.id;
         doc._rev = response.rev;
@@ -130,7 +130,7 @@ var L = require("log");
       }
       else
       {
-        L.debug("No response content");        
+        Logger.debug("No response content");        
       }
       
       if (callback)

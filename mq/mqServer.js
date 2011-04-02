@@ -9,7 +9,7 @@ var Util = require("util");
 var Events = require("events");
 var Constants = require('constants');
 
-var L = require("log");
+var Logger = require("logger");
 var WebRequest = require("webRequest");
 var PK = require("pk");
 var Drones = require("drones");
@@ -37,7 +37,7 @@ Util.inherits(MQServer, Events.EventEmitter);
  * @param {net.Stream} stream The newly created stream instance
  */
 MQServer.prototype.serverConnection = function(stream) {
-    L.log("Accepting a new stream connection");
+    Logger.log("Accepting a new stream connection");
 
     // The connection will register itself with us once it tries to authenticate, but if
     // we don't hold on to it in the meantime, it would (probably) get garbage collected, which
@@ -50,7 +50,7 @@ MQServer.prototype.serverConnection = function(stream) {
  * Handler for the "close" event of the Net.Server instance.
  */
 MQServer.prototype.serverClose = function() {
-    L.log("MessageQueueServer closed");
+    Logger.log("MessageQueueServer closed");
     this.closed = true;
 
     // Someone may care ...
@@ -68,11 +68,11 @@ MQServer.prototype.serverClose = function() {
  */
 MQServer.prototype.serverError = function(err) {
     if (err.errno == Constants.EADDRINUSE) {
-        L.warn("Address in use");
+        Logger.warn("Address in use");
     }
 
     // No matter what, close and retry in 1 second
-    L.warn(" closing and retrying in 1 second ...");
+    Logger.warn(" closing and retrying in 1 second ...");
     setTimeout(function() {
         server.close();
         server.listen(this.config.port, this.config.host);
@@ -85,7 +85,7 @@ MQServer.prototype.serverError = function(err) {
  * been updated for the MessageQueueServer instance before this method is called.
  */
 MQServer.prototype.start = function() {
-    L.log("Starting messageQueueServer with configuration", this.config);
+    Logger.log("Starting messageQueueServer with configuration", this.config);
 
     this.server = Net.createServer();
     var self = this;
@@ -122,17 +122,17 @@ MQServer.prototype.registerConnection = function(token, ident, connection) {
         this.pendingConnections = this.pendingConnections.splice(ix, 1);
     }
 
-    L.infoi("my config is", this.config);
+    Logger.infoi("my config is", this.config);
 
 
     // Make sure the token is allowed for this sort of thing
     var allowed = false;
     var session = this.config.tokenStore.get(token);
-    L.infoi("For", token, "Got session", session);
+    Logger.infoi("For", token, "Got session", session);
     if (session && session.scopes) {
         for (ix in session.scopes) {
             var scope = session.scopes[ix];
-            L.info("Checkin scope", scope);
+            Logger.info("Checkin scope", scope);
             if (scope == "drone") {
                 allowed = true;
                 break;
@@ -141,21 +141,21 @@ MQServer.prototype.registerConnection = function(token, ident, connection) {
     }
 
     if (!allowed) {
-        L.warn("Couldn't authenticate that token, fail.");
+        Logger.warn("Couldn't authenticate that token, fail.");
         return false;
     }
 
     // Register the connection
     if (!this.config.registry) {
-        L.errori("Got a new authenticated connection, but no drone registry. Denying the connection");
+        Logger.errori("Got a new authenticated connection, but no drone registry. Denying the connection");
         return false;
     }
 
-    L.info("Creating a new DroneConnection object");
+    Logger.info("Creating a new DroneConnection object");
     this.config.registry.register(token, ident, connection,
     function(err) {
         // Don't really care I guess??? Maybe force the connection closed?
-        L.errori("Unable to register the connection for", token, err);
+        Logger.errori("Unable to register the connection for", token, err);
         connection.close();
     });
 

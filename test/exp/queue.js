@@ -1,7 +1,7 @@
 require.paths.unshift(__dirname);
 require.paths.unshift(__dirname + '/../..');
 
-var L = require("log");
+var Logger = require("logger");
 var PK = require("pk");
 var Queue = require("queue");
 

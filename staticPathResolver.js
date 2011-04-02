@@ -3,7 +3,7 @@
  * assumes that all ..'s in a path are hax0rz
  */
 
-var L = require('log');
+var Logger = require("logger");
 var Url = require('url');
 var QueryString = require('querystring');
 var PK = require('pk');
@@ -11,7 +11,7 @@ var PK = require('pk');
 module.exports = function() {
     return function(req, res, next) {
         if (req.method != 'GET' && req.method != 'HEAD') return next();
-        L.debugi("Before", req.url);
+        Logger.debugi("Before", req.url);
         var url = Url.parse(req.url);
         var pathname = QueryString.unescape(url.pathname);
         var resolved = PK.resolvePath('', pathname);
@@ -22,7 +22,7 @@ module.exports = function() {
         req.url = Url.format(url);
 
         // Pass through to the next layer
-        L.debugi("After", req.url);
+        Logger.debugi("After", req.url);
         return next();
     };
 }

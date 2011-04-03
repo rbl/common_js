@@ -92,13 +92,9 @@ exports.validate = function(req,res,meta,target) {
             var value = req.param(key);
             Logger.debugi("  it is required, value=",value);
             if (!value) {
-                var result = {
-                    error: "Required parameter is missing",
-                    description: "The required parameter '"+key+"' is missing.",
-                    doc: key.description,
-                }
-
-                return exports.sendJSON(res, result);
+                var error = "Required parameter is missing";
+                var description = "The required parameter '" + key + "' is missing.";
+                return exports.sendJSONError(res, error, description, 400);
             }
         } else {
             Logger.debugi("  - is not required");

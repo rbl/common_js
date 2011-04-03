@@ -16,10 +16,19 @@ var CSI = '\x1B[';
 
 var COLOR_REST = CSI + "m";
 
-exports.DEBUG = "DEBUG";
-exports.INFO = "INFO";
-exports.WARN = "WARN";
-exports.ERROR = "ERROR";
+exports.DEBUG = 3;
+exports.INFO =  2;
+exports.WARN =  1;
+exports.ERROR = 0;
+
+var logLevelNames = [
+    "ERROR",
+    "WARNING",
+    "INFO",
+    "DEBUG",
+]
+
+exports.logLevel = exports.DEBUG;
 
 // Refer to http://en.wikipedia.org/wiki/ANSI_escape_code
 // 30-37 for foreground color, 39 = default
@@ -45,7 +54,7 @@ COLORS[exports.INFO] = "39;22";
 COLORS[exports.WARN] = "34;1";
 COLORS[exports.ERROR] = "31;1";
 
-var DO_COLOR = true;
+exports.DO_COLOR = true;
 
 ///////////////////////////////////////////////////////////////////////////////
 /**
@@ -64,7 +73,9 @@ var DO_COLOR = true;
  */
 function logLine(options) {
     var level = options.level || exports.INFO;
-  
+    if(exports.logLevel < level)
+        return;
+    
     var line = "";
     if (options.continuation) {
         line += CONTINUATION_SPACE;
@@ -74,15 +85,15 @@ function logLine(options) {
         while(line.length < CONTINUATION_SPACE.length) line += " "; 
     }
   
-    if (DO_COLOR) line += CSI + COLORS[level] + 'm';
-    line += level.slice(0,MAX_LEVEL_LENGTH);
-    //if (DO_COLOR) line += COLOR_REST;
+    if (exports.DO_COLOR) line += CSI + COLORS[level] + 'm';
+    line += logLevelNames[level].slice(0,MAX_LEVEL_LENGTH);
+    //if (exports.DO_COLOR) line += COLOR_REST;
   
-    for(var ix=level.length; ix<MAX_LEVEL_LENGTH; ix++) line += " ";
+    for(var ix=logLevelNames[level].length; ix<MAX_LEVEL_LENGTH; ix++) line += " ";
     
     line += " | ";
   
-    //if (DO_COLOR) line += CSI + COLORS[level] + 'm';
+    //if (exports.DO_COLOR) line += CSI + COLORS[level] + 'm';
     for(var ix=1; ix<arguments.length; ix++) {
         var val = arguments[ix];
         if (typeof val === 'undefined') val = 'undefined';
@@ -99,7 +110,7 @@ function logLine(options) {
         
         line += " ";
     }
-    if (DO_COLOR) line += COLOR_REST;
+    if (exports.DO_COLOR) line += COLOR_REST;
 
     // Now make sure newlines are properly replaced
     line = line.replace(/\n/gm, NEWLINE_HEADER);

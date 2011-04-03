@@ -156,7 +156,7 @@ exports.register = function(app, name, controller, config) {
             Logger.info("  requires scope",data.required_scope)
             for(var ix = 0; ix<methods.length; ix++) {
                 var method = methods[ix];
-                app[method](endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
+                app[method](endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key], Tokens.SessionSaver());
             }
 
             // app.get(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
@@ -167,7 +167,7 @@ exports.register = function(app, name, controller, config) {
             Logger.info("  No scope required")
             for(var ix = 0; ix<methods.length; ix++) {
                 var method = methods[ix];
-                app[method](endpoint, controller[key]);
+                app[method](endpoint, controller[key], Tokens.SessionSaver());
             }
             // app.get(endpoint, controller[key]);
             // app.post(endpoint, controller[key]);

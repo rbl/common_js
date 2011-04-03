@@ -73,9 +73,10 @@ MQServer.prototype.serverError = function(err) {
 
     // No matter what, close and retry in 1 second
     Logger.warn(" closing and retrying in 1 second ...");
+    var self = this;
     setTimeout(function() {
-        server.close();
-        server.listen(this.config.port, this.config.host);
+        self.server.close();
+        self.server.listen(this.config.port, this.config.host);
     },
     1000);
 }

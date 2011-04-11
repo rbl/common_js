@@ -268,9 +268,9 @@ exports.propertyNamesAndValues = function(obj) {
 exports.methodNames = function(obj)
  {
     var methods = [];
-    for (var key in obj)
-    if (typeof(obj[key]) == "function")
-    methods.push(key);
+    for (var key in obj) {        
+        if ("function" === typeof(obj[key])) methods.push(key);
+    }
 
     methods.sort();
 
@@ -278,7 +278,7 @@ exports.methodNames = function(obj)
     for (var i = 0; i < methods.length; i++) {
         methodNames += "\n\t" + methods[i];
     }
-    
+
     methodNames += "\n";
 
     return methodNames;

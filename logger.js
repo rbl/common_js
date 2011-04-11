@@ -72,7 +72,8 @@ exports.DO_COLOR = true;
  * @type void
  */
 function logLine(options) {
-    var level = options.level || exports.INFO;
+    var level = exports.INFO;
+    if (typeof options.level !== "undefined") level = options.level;
     if(exports.logLevel < level)
         return;
     
@@ -105,7 +106,11 @@ function logLine(options) {
             line += Sys.inspect(val);
           }
         } else {
-          line += val.toString();
+          if (val!=null) {
+              line += val.toString();
+          } else {
+              line += "null";
+          }
         }
         
         line += " ";
@@ -118,7 +123,7 @@ function logLine(options) {
     // And output it ...
     Sys.puts(line);
 }
-
+exports.logLine = logLine;
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
@@ -341,4 +346,33 @@ exports.logStackUntil = function(lastFunc, opts) {
         logLine(opts, line);
         opts.continuation = true;
     }
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+/**
+ * Convenience method for logging errors returned to callbacks. If the error 
+ * parameter is null nothing will be output so it's save to always call this
+ * function in the async callback and things will only be output if an error
+ * has actually occurred.
+ * 
+ * If the error parameter is a real Error object with a stack associated with
+ * it then the stack is also logged as a continuation in a nice format.
+ *
+ * @param {String} msg - App specific message to prefix the returned error message with.
+ * @param {Error} error - An object representing the error that occurred. This object
+ *                  is also used as the return value of the function to allow using
+ *                  the function in an if statement.
+ * @returns The error object that was passed in to it
+ * @type Error
+ */
+exports.logErrorObj = function(msg, error) {
+    if (!error) return null;
+    
+    this.error(msg,error);
+    if (error.stack) {
+        logLine({level:exports.ERROR, continuation:true}, error.stack);
+    }
+    
+    return error;
 }

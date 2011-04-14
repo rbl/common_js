@@ -10,6 +10,7 @@ exports.INFINITE = 99999999; // Well, ALMOST infinite ...
 function ResourceLock(available) {
     if ("undefined" == typeof available) available = 1;
     
+    this.maxAvailable = available;
     this.available = available;
     this.waiting = [];
     this.exclusivelyLocked = false;
@@ -26,7 +27,7 @@ ResourceLock.prototype.getLock = function(waiter) {
     }
     
     // else, not right now buddy ...
-    this.waiting.push(waiter);    
+    this.waiting.push(waiter);
 }
 
 ResourceLock.prototype.lock = function() {
@@ -57,7 +58,13 @@ ResourceLock.prototype.release = function() {
             this.available -= 1;
             var luckyWinner = this.waiting.shift();
             
-            this.callWaiter(luckyWinner);
+            // Try to dispatch, which might fail if it requires exclusive access and doesn't have it yet
+            if (!this.callWaiter(luckyWinner)) {
+                // Aack! put everything back the way it was a moment ago and stop
+                this.available += 1;
+                this.waiting.unshift(luckyWinner);
+                break;
+            }
         }
     }    
 }
@@ -73,11 +80,19 @@ ResourceLock.prototype.exclusiveRelease = function() {
 ResourceLock.prototype.callWaiter = function(waiter) {
     // We could do this synchronously, but next tick makes it unwind the stack a little nicer I think
     if (waiter.isExclusive) {
+        // Since our availability has been taken off of max, test for max-1 instead of max
+        if (this.available != (this.maxAvailable-1)) {
+            // Some else has a lock right now so we can't start this exclusive guy
+            return false;
+        }
         this.exclusivelyLocked = true;
     }
     
-    //process.nextTick(function() { 
+    process.nextTick(function() { 
         waiter.func.apply(waiter.args);
-    //});    
+    });
+    
+    // That all went ok
+    return true;
 }
 

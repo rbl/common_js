@@ -283,3 +283,18 @@ exports.methodNames = function(obj)
 
     return methodNames;
 }
+
+
+///////////////////////////////////////////////////////////////////////////////
+/**
+ * Removes an entire directory tree at the given path.
+ *
+ * @param {String} path - to a directory to remove
+ * @param {function(err)} next - function to call when finished
+ * @type void
+ */
+exports.rmTree = function(path, next) {
+    // TODO: Actually remove the directory ...
+    
+    process.nextTick(next);
+}

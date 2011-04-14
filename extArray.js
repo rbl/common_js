@@ -42,7 +42,7 @@ Array.prototype.STD_COMPARATOR = function(a,b) {
     return -1;
 }
 
-Array.prototype.sort = function(comparator) {
+Array.prototype.qsort = function(comparator) {
     if (!comparator) comparator = Array.prototype.STD_COMPARATOR;
 
     qsort(this, 0, this.length, comparator);

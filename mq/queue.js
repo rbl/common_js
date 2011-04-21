@@ -76,12 +76,12 @@ Queue.prototype.streamConnect = function() {
  * @type void
  */
 Queue.prototype.streamData = function(data) {
-    Logger.logi("streamData", data);
+    //Logger.logi("streamData", data);
 
     // Add it to the deque
     this.deque.writeBuffer(data);
 
-    Logger.logi("this.deque.getLength()=", this.deque.getLength())
+    //Logger.logi("this.deque.getLength()=", this.deque.getLength())
     // If we have enough data, dispatch to the next parsing function
     while (this.deque.getLength() >= this.amtRequired) {
         this.nextParseFunction();
@@ -203,7 +203,7 @@ Queue.prototype.sendDataOnChannel = function(data, channel) {
         Logger.errori("Attempting to send", data.length, "bytes on undefined channel. Boo!");
         Logger.logStack();
     }
-    Logger.logi("sending", data.length, "bytes of data on channel", channel);
+    //Logger.debugi("sending", data.length, "bytes of data on channel", channel);
 
     if (! (data instanceof Buffer)) {
         data = Buffer(data.toString());
@@ -215,7 +215,6 @@ Queue.prototype.sendDataOnChannel = function(data, channel) {
 
     // First 4 bytes are the channel
     PK.writeUInt32(channel, this.channelTemp);
-    Logger.logi("channelTemp is", this.channelTemp);
     this.stream.write(this.channelTemp);
 
     // The data itself
@@ -262,7 +261,6 @@ Queue.prototype.parseChannel = function() {
         throw new Error("Failed to read 4 bytes for PDU payload length");
     }
     this.amtRequired = PK.readUInt32(this.channelTemp);
-    Logger.logi("length is ", this.amtRequired);
 
     if (this.amtRequired < 4) {
         // WTF mate?
@@ -278,11 +276,9 @@ Queue.prototype.parseChannel = function() {
         throw new Error("Failed to read 4 bytes for PDU payload length");
     }
     this.incomingChannel = PK.readUInt32(this.channelTemp);
-    Logger.logi("Incoming channel is", this.incomingChannel);
 
     // Reduce the amt required
     this.amtRequired -= 4;
-    Logger.logi("Remaining data is", this.amtRequired);
     this.nextParseFunction = this.parsePayload;
 }
 
@@ -308,7 +304,6 @@ Queue.prototype.parsePayload = function() {
 }
 
 Queue.prototype.dispatchMessage = function() {
-    Logger.logi("Dispatching message");
     try {
         data = this.incomingBuffer.slice(0, this.amtRequired);
         var msg = JSON.parse(data);
@@ -316,12 +311,11 @@ Queue.prototype.dispatchMessage = function() {
         // Allow a preDispatchHook to pre-process or otherwise veto the dispatching
         if (this.preDispatchHook) {
             if (!this.preDispatchHook(msg)) {
-                Logger.debugi("Pre-dispatch hook returned false, skipping dispatch");
+                //Logger.debugi("Pre-dispatch hook returned false, skipping dispatch");
                 return;
             }
         }
 
-        Logger.infoi("Dispatching message", msg);
         this.emit("message", msg);
     } catch(err) {
         Logger.warni("Error during message dispatch", err);
@@ -333,7 +327,7 @@ Queue.prototype.dispatchMessage = function() {
 }
 
 Queue.prototype.dispatchData = function() {
-    Logger.logi("Dispatching data, channel=", this.incomingChannel, "size=", this.amtRequired);
+    //Logger.debugi("Dispatching data, channel=", this.incomingChannel, "size=", this.amtRequired);
     try {
         data = this.incomingBuffer.slice(0, this.amtRequired);
         this.emit("c" + this.incomingChannel, data);

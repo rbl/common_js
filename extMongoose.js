@@ -1,47 +1,7 @@
 var Mongoose = require('mongoose');
-var Model = Mongoose.Model;
+var Document = Mongoose.Document;
 var db = Mongoose.connection.db; 
 var GridStore = Mongoose.mongo.GridStore;
-
-Model.prototype.gridStoreRead = function (callback) {
-    
-    if (!this._id) {
-        
-        var error = "Object doesn't have an id";
-        return callback(error, null);
-    }
-    GridStore.read(db, this._id, function (error, data){
-        
-        return callback(error, data);
-    });
-};
-
-Model.prototype.gridStoreStream = function (callback) {
-    
-    if (!this._id) {
-        
-        var error = "Object doesn't have an id";
-        return callback(error, null);
-    }
-    var gridStore = new GridStore(db, this._id, "r");
-    gridStore.open(function(error, gridStore) {
-        
-        return callback(error, gridStore.stream(true));
-    });    
-}
-
-Model.prototype.gridStoreExists = function (callback) {
-    
-    if (!this._id) {
-        
-        var error = "Object doesn't have an id";
-        return callback(error, false);
-    }
-    GridStore.exist(db, this._id, function(error, result) {
-          
-          return callback(error, result);
-    });
-}
 
 function writeGridStore(name, permissions, data, isFile, callback) {
     
@@ -69,7 +29,47 @@ function writeGridStore(name, permissions, data, isFile, callback) {
     });
 }
 
-Model.prototype.gridStoreWrite = function (data, callback) {
+Document.prototype.gridStoreRead = function (callback) {
+    
+    if (!this._id) {
+        
+        var error = "Object doesn't have an id";
+        return callback(error, null);
+    }
+    GridStore.read(db, this._id, function (error, data){
+        
+        return callback(error, data);
+    });
+};
+
+Document.prototype.gridStoreStream = function (callback) {
+    
+    if (!this._id) {
+        
+        var error = "Object doesn't have an id";
+        return callback(error, null);
+    }
+    var gridStore = new GridStore(db, this._id, "r");
+    gridStore.open(function(error, gridStore) {
+        
+        return callback(error, gridStore.stream(true));
+    });    
+}
+
+Document.prototype.gridStoreExists = function (callback) {
+    
+    if (!this._id) {
+        
+        var error = "Object doesn't have an id";
+        return callback(error, false);
+    }
+    GridStore.exist(db, this._id, function(error, result) {
+          
+          return callback(error, result);
+    });
+}
+
+Document.prototype.gridStoreWrite = function (data, callback) {
     
     if (!this._id) {
         
@@ -81,7 +81,7 @@ Model.prototype.gridStoreWrite = function (data, callback) {
     });
 }
 
-Model.prototype.gridStoreAppend = function (data, callback) {
+Document.prototype.gridStoreAppend = function (data, callback) {
     
     if (!this._id) {
         
@@ -93,7 +93,7 @@ Model.prototype.gridStoreAppend = function (data, callback) {
     });
 }
 
-Model.prototype.gridStoreWriteFile = function (data, callback) {
+Document.prototype.gridStoreWriteFile = function (data, callback) {
     
     if (!this._id) {
         
@@ -105,7 +105,7 @@ Model.prototype.gridStoreWriteFile = function (data, callback) {
     });
 }
 
-Model.prototype.gridStoreDelete = function (callback) {
+Document.prototype.gridStoreDelete = function (callback) {
     
     if (!this._id) {
         

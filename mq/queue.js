@@ -327,9 +327,9 @@ Queue.prototype.dispatchMessage = function() {
 }
 
 Queue.prototype.dispatchData = function() {
-    //Logger.debugi("Dispatching data, channel=", this.incomingChannel, "size=", this.amtRequired);
     try {
         data = this.incomingBuffer.slice(0, this.amtRequired);
+        //Logger.debugi("Dispatching data, channel=", this.incomingChannel, "size=", this.amtRequired, "content=", data.toString());
         this.emit("c" + this.incomingChannel, data);
     } catch(err) {
         Logger.warni("Error during channel", this.incomingChannel, "dispatch", err);

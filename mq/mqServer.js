@@ -86,6 +86,7 @@ MQServer.prototype.serverError = function(err) {
  * been updated for the MessageQueueServer instance before this method is called.
  */
 MQServer.prototype.start = function() {
+    
     Logger.log("Starting messageQueueServer with configuration", this.config);
 
     this.server = Net.createServer();
@@ -113,74 +114,74 @@ MQServer.prototype.start = function() {
  * @param {String} token - The oauth token received on the connection
  * @param {ident} ident - The identity object for this client, contains lots of detail
  * @param {ServerConnection} connection - The actual connection object itself.
+ * @param {function(err,authenticated)} next - Callback to be told if the connection is authenticated successfully
  * @returns true if authentication is fine, false if things are bad (i.e. bad token)
  * @type bool
  */
-MQServer.prototype.registerConnection = function(token, ident, connection) {
+MQServer.prototype.registerConnection = function(token, ident, connection, next) {
+    
+    var self = this;
+    
     // Take this connection out of "pending"
-    var ix = this.pendingConnections.indexOf(connection);
+    var ix = self.pendingConnections.indexOf(connection);
     if (ix !== -1) {
-        this.pendingConnections = this.pendingConnections.splice(ix, 1);
+        self.pendingConnections = self.pendingConnections.splice(ix, 1);
     }
 
-    Logger.infoi("my config is", this.config);
+    //Logger.infoi("my config is", this.config);
 
 
     // Make sure the token is allowed for this sort of thing
-    var allowed = false;
-    var session = this.config.tokenStore.get(token);
-    Logger.infoi("For", token, "Got session", session);
-    if (session && session.scopes) {
-        for (ix in session.scopes) {
-            var scope = session.scopes[ix];
-            Logger.info("Checkin scope", scope);
-            if (scope == "drone") {
-                allowed = true;
-                break;
+    
+    self.config.tokenStore.get(token, function(err,session) {
+        
+        if (Logger.logErrorObj("Fetching oauth token", err)) {
+            return next(err,false);
+        }
+        
+        var allowed = false;
+        Logger.infoi("For", token, "Got session", session);
+        if (session && session.scopes) {
+            for (ix in session.scopes) {
+                var scope = session.scopes[ix];
+                Logger.info("Checkin scope", scope);
+                if (scope == "drone") {
+                    allowed = true;
+                    break;
+                }
             }
         }
-    }
 
-    if (!allowed) {
-        Logger.warn("Couldn't authenticate that token, fail.");
-        return false;
-    }
+        if (!allowed) {
+            Logger.warn("Couldn't authenticate that token, fail.");
+            return next(null,false);
+        }
 
-    // Register the connection
-    if (!this.config.registry) {
-        Logger.errori("Got a new authenticated connection, but no drone registry. Denying the connection");
-        return false;
-    }
+        // Register the connection
+        if (!self.config.registry) {
+            Logger.errori("Got a new authenticated connection, but no drone registry. Denying the connection");
+            return next(null,false);
+        }
 
-    Logger.info("Creating a new DroneConnection object");
-    this.config.registry.register(token, ident, connection,
-    function(err) {
-        // Don't really care I guess??? Maybe force the connection closed?
-        Logger.errori("Unable to register the connection for", token, err);
-        connection.close();
+        Logger.info("Creating a new DroneConnection object");
+        self.config.registry.register(token, ident, connection, function(err) {
+            
+            if (Logger.logErrorObj("Failed to register connection in registry",err)) {
+                return next(err, false);
+            }
+            
+            // Cool, they are all registered and stuff
+            
+            // Need to know when that connection closes so we can unregister it
+            connection.on("close", function() {
+                self.connectionClosed(ident, connection);
+            });
+            
+            // And that's it!
+            Logger.debug("Successful registration completed okalie dokalie");
+            return next(null, true);
+        });
     });
-
-
-    // // Ok, they are allowed, store the mapping between connection and token so
-    // // we can ever send messages to this token. To scale beyond one process we need to
-    // // do something more complex, but I'm not sure what yet. Maybe we just queue outgoing
-    // // messages in couch or something.
-    //
-    // if (!this.connectionsByToken[token])
-    // {
-    //   this.connectionsByToken[token] = [];
-    // }
-    //
-    // this.connectionsByToken[token].push(connection);
-    // Need to know when that thing dies
-    var self = this;
-    connection.on("close",
-    function() {
-        self.connectionClosed(ident, connection);
-    });
-
-    // Let the caller know that everything is just peachy
-    return true;
 }
 
 /**

@@ -110,22 +110,16 @@ exports.validate = function(req,res,meta,target) {
 /**
  * Register a provided controller module. The controller is slightly introspected
  * to find the meta object that describes all the endpoints in the controller module.
- * 
- * The passed in configuration value is set to the module so the operation of the
- * various controller bits can have some shared state.
  *
  * @param {Express.App} app - The app to which we should be adding routes
  * @param {string} name - the endpoint name 
  * @param {Object} controller - controller module with sub-names for this endpoint
- * @param {Object} config - What is known as the bsConfig in the app.js module, this 
- *                  configuration dictionary is used by all other pieces of the app
- *                  as well.
  * @type void
  */
-exports.register = function(app, name, controller, config) {
-    controller.config = config;
+exports.register = function(app, name, controller) {
     var meta = controller.meta;
-
+    var tokenStore = app.set("bldstr tokenStore");
+    
     for (key in meta) {
         var data = meta[key];
 
@@ -152,23 +146,14 @@ exports.register = function(app, name, controller, config) {
             Logger.info("  requires scope",data.required_scope)
             for(var ix = 0; ix<methods.length; ix++) {
                 var method = methods[ix];
-                app[method](endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key], Tokens.SessionSaver());
+                app[method](endpoint, Tokens.SessionToken(tokenStore, data.required_scope), controller[key], Tokens.SessionSaver());
             }
-
-            // app.get(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
-            // app.post(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
-            // app.put(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
-            // app.delete(endpoint, Tokens.SessionToken(config.tokenStore, data.required_scope), controller[key]);
         } else {
             Logger.info("  No scope required")
             for(var ix = 0; ix<methods.length; ix++) {
                 var method = methods[ix];
                 app[method](endpoint, controller[key], Tokens.SessionSaver());
             }
-            // app.get(endpoint, controller[key]);
-            // app.post(endpoint, controller[key]);
-            // app.put(endpoint, controller[key]);
-            // app.delete(endpoint, controller[key]);
         }
     }  
 }

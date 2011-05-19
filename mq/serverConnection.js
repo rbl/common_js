@@ -28,8 +28,8 @@ function ServerConnection(mqServer, stream) {
 
     this.queue = Queue.create(stream);
     // Setup a hook so that we can veto unauthenticated messages
-    this.queue.preDispatchHook = function(msg) {
-        self.preDispatchAuthenticator(msg);
+    this.queue.preDispatchHook = function(msg,next) {
+        self.preDispatchAuthenticator(msg,next);
     };
     this.queue.on("close", function(hadError) { self.queueClosed(hadError); });
 }
@@ -49,27 +49,31 @@ exports.create = function(parent, stream) {
  * @returns True if authenticated
  * @type _type_
  */
-ServerConnection.prototype.preDispatchAuthenticator = function(msg) {
-    if (this.authenticated) {
+ServerConnection.prototype.preDispatchAuthenticator = function(msg, next) {
+    
+    var self = this;
+    Logger.debugi("preDispatchAuthenticator(",msg,",",next,")");
+    
+    if (self.authenticated) {
         // Oops! Don't need to be hooked anymore
-        delete this.queue.preDispatchHook;
-        return true;
+        delete self.queue.preDispatchHook;
+        return next();
     }
 
     Logger.infoi("Attempting authentication using", msg);
     if (msg.type !== "oauth") {
         Logger.warni("While unauthenticated, ignoring message because it's the wrong type", msg);
-        return false;
+        return next();
     }
 
     var token = msg.oauth_token;
     if (!token) {
         Logger.warni("Authentication message has no oauth_token. Sending an error message", token);
-        this.queue.sendMessage({
+        self.queue.sendMessage({
             type: "error",
             description: "No oauth_token in authentication message"
         });
-        return false;
+        return next();
     }
 
     // Ok, let's see if that token is good sauce.
@@ -77,24 +81,34 @@ ServerConnection.prototype.preDispatchAuthenticator = function(msg) {
     // Using the token for an identifier would be a horrible idea because the token grants
     // identity along with it's associated authorizations.
     var ident = msg.ident || PK.uuid();
-    if (!this.parent.registerConnection(token, ident, this)) {
-        Logger.warni("Authentication failed for", token);
-        this.queue.sendMessage({
-            type: "error",
-            description: "Invalid authentication token"
-        });
-        return false;
-    }
+    self.parent.registerConnection(token, ident, self, function(err, authenticated) {
+        
+        Logger.debugi("Back from registerConnection(",err,",",authenticated,")");
+        
+        if (!err && !authenticated) {
+            // This is actually an error
+            err = "Generic failure.";
+        }
+        
+        if (Logger.logErrorObj("Authentication failed for "+token, err)) {
+            self.queue.sendMessage({
+                type: "error",
+                description: "Invalid authentication token"
+            });
+            return next();
+        }
 
-    // It's all good!
-    this.authenticated = true;
+        // It's all good!
+        self.authenticated = true;
 
-    // Don't need the hook anymore
-    delete this.queue.preDispatchHook;
+        // Don't need the hook anymore
+        delete self.queue.preDispatchHook;
 
-    // Don't allow the authentication message to be shown to anyone else
-    return false;
+        // Don't allow the authentication message to be shown to anyone else
+        return next();
+    });
 }
+
 
 ServerConnection.prototype.queueClosed = function(hadError) {
     // Drop the stream and try to restart the message queue

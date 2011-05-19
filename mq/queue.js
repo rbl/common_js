@@ -35,6 +35,11 @@ function Queue(stream) {
     this.incomingBuffer = Buffer(1024);
     // Start with a 1k buffer, which sounds reasonableish
     this.setParseStateGround();
+    
+    // Before authentication is complete we have to make sure messages are processing
+    // serially. After that we do them asynch. If there is a preDispatchHook we will
+    // pause parsing while it does it's work and then unpause it after it's done.
+    this.parsingPaused = false;
 
     var self = this;
     stream.on("connect", function() { self.streamConnect(); });
@@ -79,12 +84,18 @@ Queue.prototype.streamData = function(data) {
     //Logger.logi("streamData", data);
 
     // Add it to the deque
-    this.deque.writeBuffer(data);
+    if (data) {
+        this.deque.writeBuffer(data);
+    }
 
     //Logger.logi("this.deque.getLength()=", this.deque.getLength())
     // If we have enough data, dispatch to the next parsing function
-    while (this.deque.getLength() >= this.amtRequired) {
+    while (this.deque.getLength() >= this.amtRequired && !this.parsingPaused) {
         this.nextParseFunction();
+    }
+    
+    if (this.parsingPaused) {
+        Logger.debug("Stopped parsing because it's paused");
     }
 }
 
@@ -234,8 +245,7 @@ Queue.prototype.registerHandlers = function(handlers) {
         var handler = handlers[key];
         (function(self, key, handler) {
             Logger.logi("Registering", key, "to handler", handler);
-            self.on("message",
-            function(msg) {
+            self.on("message", function(msg) {
                 if (msg.type === key) handler.handle(self, msg);
             });
         })(self, key, handler);
@@ -304,25 +314,37 @@ Queue.prototype.parsePayload = function() {
 }
 
 Queue.prototype.dispatchMessage = function() {
+
+    var self = this;
     try {
-        data = this.incomingBuffer.slice(0, this.amtRequired);
+        data = self.incomingBuffer.slice(0, self.amtRequired);
         var msg = JSON.parse(data);
 
         // Allow a preDispatchHook to pre-process or otherwise veto the dispatching
-        if (this.preDispatchHook) {
-            if (!this.preDispatchHook(msg)) {
-                //Logger.debugi("Pre-dispatch hook returned false, skipping dispatch");
-                return;
-            }
+        if (self.preDispatchHook) {
+            // Don't parse anything else until this message is resolved. We need to give
+            // authentication a chance to go to the database
+            self.parsingPaused = true;
+            
+            self.preDispatchHook(msg, function() {
+                // Unpause and restart the parsing loop
+                Logger.debug("Unpausing parsing (I think...)");
+                self.parsingPaused = false;
+                self.streamData(null);
+            });
+        } else {
+            self.emit("message", msg);
         }
-
-        this.emit("message", msg);
     } catch(err) {
         Logger.warni("Error during message dispatch", err);
         if (err.stack) {
             Logger.warni(err.stack);
         }
-        this.emit("messageException", err);
+        
+        // This ALWAYS unpauses messages for safety
+        self.parsingPaused = false;
+        
+        self.emit("messageException", err);
     }
 }
 

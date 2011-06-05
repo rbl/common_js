@@ -46,7 +46,10 @@ WebRequest.prototype.start = function() {
     };
     
     if (this.token) {
+        //Logger.errori("Adding token",this.token);
         headers['Authorization'] = "OAuth2 "+this.token;
+    } else {
+        //Logger.errori("---- NO OAUTH TOKEN ----");
     }
 
     var path = this.url.pathname;
@@ -61,7 +64,7 @@ WebRequest.prototype.start = function() {
             path += "&";
         }
 
-        path += QueryString.stringify(body);
+        path += QueryString.stringify(this.body);
         this.body = null;
     }
 
@@ -104,7 +107,11 @@ WebRequest.prototype.start = function() {
         //   if (callback) return callback(new Error("Got server response "+response.statusCode), null);
         // }
         //
-        Logger.log('Response code is ', response.statusCode);
+        //Logger.log('Response code is ', response.statusCode);
+        if (response.statusCode != 200) {
+            return self.callback({code:response.statusCode});
+        }
+        
         response.setEncoding('utf8');
         response.on('data', function(chunk) {
             responseBuffer += chunk;
@@ -112,7 +119,7 @@ WebRequest.prototype.start = function() {
 
         response.on('end', function() {
             // Hand the entire response to the callback
-            Logger.log('Got end event');
+            //Logger.log('Got end event');
             if (self.callback) {
                 if (responseBuffer && responseBuffer.length && self.asJSON) {
                     //Logger.warni("Response be", responseBuffer);
@@ -134,7 +141,7 @@ WebRequest.prototype.start = function() {
 
 
 function parseStandardArguments(list) {
-    Logger.infoi("Parsing standard arguments",list);
+    //Logger.infoi("Parsing standard arguments",list);
     
     var args = {};
     args.url = list[0];

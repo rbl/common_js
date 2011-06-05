@@ -4,6 +4,8 @@
 
 var Logger = require('logger');
 var Crypto = require("crypto");
+var FS = require("fs");
+var Path = require("path");
 
 // Private array of chars to use for uuids
 var CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz'.split('');
@@ -20,10 +22,12 @@ exports.uuid = function(len) {
 
     for (var i = 0; i < len; i++) uuid[i] = chars[0 | Math.random() * radix];
     return uuid.join('');
-}
+};
 
 /**
  * Resolve back references (..) and (.) in filesystem paths.
+ * 
+ * I think this could be replaced by Path.normalize() now ...
  */
 exports.resolvePath = function(basePath, child) {
     var stack;
@@ -63,7 +67,7 @@ exports.resolvePath = function(basePath, child) {
     }
 
     return result;
-}
+};
 
 exports.stringifyDate = function(date, reference) {
     reference = reference || new Date();
@@ -121,7 +125,7 @@ exports.stringifyDate = function(date, reference) {
     }
 
     return ret;
-}
+};
 
 /**
   Turns a date object into a standardized string of the form
@@ -129,10 +133,10 @@ exports.stringifyDate = function(date, reference) {
 */
 exports.isoFromDate = function(d) {
     function pad(n) {
-        return n < 10 ? '0' + n: n
+        return n < 10 ? '0' + n: n;
     }
     function pad100(n) {
-        return n < 100 ? '0' + pad(n) : n
+        return n < 100 ? '0' + pad(n) : n;
     }
 
     return d.getUTCFullYear() + '-'
@@ -142,7 +146,7 @@ exports.isoFromDate = function(d) {
     + pad(d.getUTCMinutes()) + ':'
     + pad(d.getUTCSeconds()) + '.'
     + pad(d.getUTCMilliseconds()) + 'Z';
-}
+};
 
 /**
   Given a particular salt and password, return the hashed version.
@@ -154,7 +158,7 @@ exports.hashPassword = function(password, salt) {
     hasher.update(password);
 
     return hasher.digest("base64");
-}
+};
 
 /**
   Do a deep copy on an object. Works for pretty much everything, including
@@ -169,7 +173,7 @@ exports.deepCopy = function(src) {
         newInstance[i] = exports.deepCopy(src[i]);
     }
     return newInstance;
-}
+};
 
 /**
  * Reads a UInt32 from a buffer. For speed it presumes you have already checked
@@ -188,7 +192,7 @@ exports.readUInt32 = function(buffer, off) {
     out = (out << 8) + buffer[off + 2];
     out = (out << 8) + buffer[off + 3];
     return out;
-}
+};
 
 /**
  * Writes a uint32 to the given buffer. Assumes that there are 4 bytes of space
@@ -206,7 +210,7 @@ exports.writeUInt32 = function(value, buffer, off) {
     buffer[off + 1] = (value >> 16) & 0x00ff;
     buffer[off + 2] = (value >> 8) & 0x00ff;
     buffer[off + 3] = (value) & 0x00ff;
-}
+};
 
 /**
  * Get the "length of a hash". In reality this counts the objects owned
@@ -226,7 +230,7 @@ exports.objLength = function(obj) {
         if (obj.hasOwnProperty(key)) size++;
     }
     return size;
-}
+};
 
 /**
  *  Gets a list of all the keys in a given object. Hopefully handy
@@ -242,7 +246,7 @@ exports.propertyNames = function(obj) {
 
     keys.sort();
     return keys;
-}
+};
 
 /**
  *  Returns a list of all the keys and values in the object. Leaves off
@@ -260,7 +264,7 @@ exports.propertyNamesAndValues = function(obj) {
     keysAndValues += "\n";
 
     return keysAndValues;
-}
+};
 
 /**
  *  Returns a sorted list of method names available for obj
@@ -282,7 +286,7 @@ exports.methodNames = function(obj)
     methodNames += "\n";
 
     return methodNames;
-}
+};
 
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -294,7 +298,52 @@ exports.methodNames = function(obj)
  * @type void
  */
 exports.rmTree = function(path, next) {
-    // TODO: Actually remove the directory ...
+    //Logger.debug("rmTree in ",path);
     
-    process.nextTick(next);
-}
+    FS.readdir(path, function(err, files) {
+        if (Logger.logErrorObj(err)) {
+            return next(err);
+        }
+        if (!files) {
+            return next();
+        }
+
+        var pendingRemovals = 0;
+        function removalFinished(err) {
+            if (Logger.logErrorObj(err)) {
+                pendingRemovals = -1;
+                return next(err);
+            }
+            
+            pendingRemovals -= 1;
+            if (pendingRemovals===0) {
+                // Totally done, can now nuke the original path
+                FS.rmdir(path, function(err) {
+                    Logger.logErrorObj(err);
+                    next(err);
+                });
+            }
+        }
+        
+        pendingRemovals = files.length;
+        for(var i=0; i<files.length; i++) {
+            var file = files[i];
+            var fpath = Path.join(path, file);
+            (function(fpath) {
+                FS.lstat(fpath, function(err, stats) {
+                    if (stats.isDirectory()) {
+                        //Logger.debug("stat of ",fpath," DIRECTORY");
+                        // Have to recurse into it
+                        exports.rmTree(fpath, removalFinished);
+                    } else {
+                        // Just unlink it directly
+                        //Logger.debug("stat of ",fpath," file");
+                        FS.unlink(fpath, removalFinished);
+                    }
+                });
+            })(fpath);
+        }
+        
+    });
+};
+

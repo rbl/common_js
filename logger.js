@@ -56,6 +56,14 @@ COLORS[exports.ERROR] = "31;1";
 
 exports.DO_COLOR = true;
 
+function d2(num) {
+    return (num < 10 ? "0" : "") + num;
+}
+
+function d3(num) {
+    return (num < 100 ? "0" : "") + (num < 10 ? "0" : "") + num;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 /**
  * The main logging function. All the other stuff really just sets values that
@@ -82,7 +90,7 @@ function logLine(options) {
         line += CONTINUATION_SPACE;
     } else {
         var d = new Date();
-        line += d.getHours() + ":" + d.getMinutes() +":"+ d.getSeconds() +":"+ d.getMilliseconds() + " ";
+        line += d2(d.getHours()) + ":" + d2(d.getMinutes()) +":"+ d2(d.getSeconds()) +":"+ d3(d.getMilliseconds()) + " ";
         while(line.length < CONTINUATION_SPACE.length) line += " "; 
     }
   
@@ -279,7 +287,15 @@ exports.hr = function(ch) {
  */
 exports.logStack = function(ex) {
     // Get an exception object
-    var ex = ex || (function() {
+    var createdEx = false;
+    
+    var msg = null;
+    if ((typeof ex) === "string") {
+        msg = ex;
+        ex = null;
+    }
+    ex = ex || (function() {
+        createdEx = true;
         try {
             var _err = __undef__ << 1;
         } catch (e) {
@@ -287,8 +303,22 @@ exports.logStack = function(ex) {
         }
     })();
 
+    var stack = ex.stack;
+    if (createdEx && stack) {
+        // Take the string apart and rip of the top 3 lines
+        var lines = stack.split("\n");
+        
+        if (lines.length > 3) {
+            stack = lines.slice(3,lines.length).join("\n");
+        }
+    }
+
+    if (msg) {
+        stack = msg + "\n" + stack;
+    }
+    
     // Output the stacktrace
-    logLine({level:exports.ERROR}, ex.stack);
+    logLine({level:exports.ERROR}, stack);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

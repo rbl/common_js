@@ -62,8 +62,23 @@ exports.sendJSONError = function(res, error, description, code) {
  * @param {Function(req,resp)} target - function to call if the validation passes
  * @type void
  */
-exports.validate = function(req,res,meta,target) {
+exports.validate = function(req,res,next,meta,target) {
     Logger.debug("validate");
+    function goodParam(param, name) {
+        if (!param) {
+            Logger.error("Probably FATAL: in controllerHelpers.validate the param",name,"is missing :(");
+            Logger.logStack();
+            if (res) {
+                res.writeHead(500,{});
+                res.end();
+            }
+            return false;
+        }
+        return true;
+    };
+    
+    if (!goodParam(req,"req") || !goodParam(res,"res") || !goodParam(next,"next") ||
+        !goodParam(meta,"meta") || !goodParam(target,"target")) return;
     var toCheck = meta.params;
 
     // See if they are requesting meta data
@@ -77,7 +92,7 @@ exports.validate = function(req,res,meta,target) {
         // Nothing to do, pass it on
         Logger.debugi("No parameters to check, target is",target);
 
-        return target(req,res);
+        return target(req,res,next);
     }
 
     // TODO: Enhance this checking so that for the early requests with redirect_uri's we can
@@ -104,7 +119,7 @@ exports.validate = function(req,res,meta,target) {
     // We have all the right params, so do the request
     // TODO: It might not be horrible to either wrap the target at this point in a try/catch so
     // we can format exceptions as JSON or maybe we just need to do that in a middleware error handler.
-    return target(req,res,meta);  
+    return target(req,res,next,meta);  
 }
 
 /**
@@ -141,19 +156,18 @@ exports.register = function(app, name, controller) {
             // By default, everything
             methods = ["get", "post", "put", "delete"];
         }
+        
+        // The suffix is added unless configured not to
+        var stack = [endpoint];
+        if (data.preSessionHandler) stack.push(data.preSessionHandler);
+        if (data.required_scope) stack.push(Tokens.SessionToken(tokenStore, data.required_scope, data.sendScopeFailure));
+        stack.push(controller[key]);
+        if (!data.dontSaveSession) Tokens.SessionSaver();
 
-        if (data.required_scope) {
-            Logger.info("  requires scope",data.required_scope)
-            for(var ix = 0; ix<methods.length; ix++) {
-                var method = methods[ix];
-                app[method](endpoint, Tokens.SessionToken(tokenStore, data.required_scope), controller[key], Tokens.SessionSaver());
-            }
-        } else {
-            Logger.info("  No scope required")
-            for(var ix = 0; ix<methods.length; ix++) {
-                var method = methods[ix];
-                app[method](endpoint, controller[key], Tokens.SessionSaver());
-            }
+        for(var ix = 0; ix<methods.length; ix++) {
+            var method = methods[ix];
+            app[method].apply(app, stack);
         }
     }  
 }
+

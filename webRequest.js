@@ -22,14 +22,21 @@ var WebRequest = function WebRequest(opts)
         if (!url.hostname && url.host) url.hostname = url.host;
     }
     this.url = url;
+    
+    this.body = opts.body;
+    this.callback = opts.callback;
+    this.token = opts.token;    
 }
 
-WebRequest.prototype.start = function(body, callback) {
+exports.make = function make(opts) {
+    (new WebRequest(opts)).start();
+}
+
+WebRequest.prototype.start = function() {
     if (!this.url.pathname) this.url.pathname = '/';
     if (!this.url.port) this.url.port = 80;
-    var asJSON = this.asJSON;
-
-    Logger.debugi("WebRequest.start()", this.method, this.url.host, this.url.port, this.url.pathname)
+    
+    Logger.debugi("WebRequest.start()", this.method, this.url.host, this.url.port, this.url.pathname, this.asJSON)
 
     // Todo, in the future cache these. For now, make them all new
     var client = Http.createClient(this.url.port, this.url.hostname);
@@ -37,9 +44,13 @@ WebRequest.prototype.start = function(body, callback) {
     var headers = {
         'host': this.url.hostname
     };
+    
+    if (this.token) {
+        headers['Authorization'] = "OAuth2 "+this.token;
+    }
 
     var path = this.url.pathname;
-    if (body && (this.method === "GET" || this.method == "DELETE")) {
+    if (this.body && (this.method === "GET" || this.method === "DELETE")) {
         // These don't actually allow us to send content, so put this stuff in
         // the url path as query parameters
         if (path.indexOf("?") == -1) {
@@ -51,26 +62,30 @@ WebRequest.prototype.start = function(body, callback) {
         }
 
         path += QueryString.stringify(body);
-        body = null;
+        this.body = null;
     }
 
     var bodyContent;
-    if (body) {
-        if (asJSON) {
+    if (this.body) {
+        if (this.asJSON) {
             Logger.debug('Writing body, encoding as JSON');
-            bodyContent = JSON.stringify(body);
+            bodyContent = JSON.stringify(this.body);
             headers["Content-Type"] = "application/json";
         } else {
-            if (typeof body === "object") {
+            if (typeof this.body === "object") {
                 Logger.debug("Writing body, encoding using query string");
                 bodyContent = QueryString.encode(body);
                 headers["Content-Type"] = "application/x-www-form-urlencoded";
             } else {
                 Logger.debug('Writing body, no additional encoding');
-                bodyContent = body;
-                headers["Content-Type"] = "text/plain";
+                bodyContent = this.body;
+                headers["Content-Type"] = this.contentType || "text/plain";
             }
         }
+    }
+    
+    if (bodyContent) {
+        headers["content-length"] = bodyContent.length;
     }
     
     var request = client.request(this.method, path, headers);
@@ -81,6 +96,7 @@ WebRequest.prototype.start = function(body, callback) {
     var responseBuffer = "";
     request.end();
 
+    var self = this;
     request.on('response', function(response) {
         // if (response.statusCode >= 300)
         // {
@@ -94,145 +110,68 @@ WebRequest.prototype.start = function(body, callback) {
             responseBuffer += chunk;
         });
 
-        response.on('end',
-        function() {
+        response.on('end', function() {
             // Hand the entire response to the callback
             Logger.log('Got end event');
-            if (callback) {
-                if (responseBuffer && responseBuffer.length && asJSON) {
-                    Logger.logi("Response be", responseBuffer);
-                    return callback(null, response, JSON.parse(responseBuffer));
+            if (self.callback) {
+                if (responseBuffer && responseBuffer.length && self.asJSON) {
+                    //Logger.warni("Response be", responseBuffer);
+                    return self.callback(null, response, JSON.parse(responseBuffer));
                 } else {
-                    return callback(null, response, responseBuffer);
+                    return self.callback(null, response, responseBuffer);
                 }
             }
         })
     });
 
     client.on('error', function(error) {
-        if (callback) {
-            return callback(error);
+        if (self.callback) {
+            return self.callback(error);
         }
         Logger.errori("HttpClient on 'error'", error);
     });
 }
 
-exports.get = function(url, doc, callback) {
-    if ((typeof doc) == "function") {
-        callback = doc;
-        doc = null;
+
+function parseStandardArguments(list) {
+    Logger.infoi("Parsing standard arguments",list);
+    
+    var args = {};
+    args.url = list[0];
+    
+    if ((typeof list[1]) === 'function') {
+        args.callback = list[1];
+        return args;
     }
-
-    var opts = {
-        url: url,
-        method: "GET"
-    };
-    var req = new WebRequest(opts);
-
-    return req.start(doc, callback);
-}
-
-
-exports.delete = function(url, doc, callback) {
-    if ((typeof doc) == "function") {
-        callback = doc;
-        doc = null;
+    args.body = list[1];
+    
+    if ((typeof list[2]) === 'function') {
+        args.callback = list[2];
+        return args;
     }
-
-    var opts = {
-        url: url,
-        method: "DELETE"
-    };
-    var req = new WebRequest(opts);
-
-    return req.start(doc, callback);
+    args.token = list[2];
+    
+    args.callback = list[3];
+    return args;
 }
 
-exports.put = function(url, doc, callback) {
-    var opts = {
-        url: url,
-        method: "PUT"
-    };
-    var req = new WebRequest(opts);
 
-    return req.start(doc, callback);
-}
-
-exports.post = function(url, doc, callback) {
-    var opts = {
-        url: url,
-        method: "POST"
-    };
-    var req = new WebRequest(opts);
-
-
-    return req.start(doc, callback);
-}
-
-// JSON versions
-exports.getJSON = function(url, doc, callback) {
-    if ((typeof doc) == "function") {
-        callback = doc;
-        doc = null;
+function methodRequest(method, json) {
+    return function(standardArguments) {
+        args = parseStandardArguments(arguments);
+        args.method = method;
+        args.asJSON = json;
+        
+        exports.make(args);
     }
-
-    var opts = {
-        url: url,
-        method: "GET",
-        asJSON: true
-    };
-    var req = new WebRequest(opts);
-
-    return req.start(doc, callback);
 }
 
+exports.get = methodRequest("GET");
+exports.delete = methodRequest("DELETE");
+exports.put = methodRequest("PUT");
+exports.post = methodRequest("POST");
 
-exports.deleteJSON = function(url, doc, callback) {
-    if ((typeof doc) == "function") {
-        callback = doc;
-        doc = null;
-    }
-
-    var opts = {
-        url: url,
-        method: "DELETE",
-        asJSON: true
-    };
-    var req = new WebRequest(opts);
-
-    return req.start(doc, callback);
-}
-
-exports.putJSON = function(url, doc, callback) {
-    var opts = {
-        url: url,
-        method: "PUT",
-        asJSON: true
-    };
-    var req = new WebRequest(opts);
-
-    return req.start(doc, callback);
-}
-
-exports.postJSON = function(url, doc, callback) {
-    var opts = {
-        url: url,
-        method: "POST",
-        asJSON: true
-    };
-    var req = new WebRequest(opts);
-
-
-    return req.start(doc, callback);
-}
-
-// Standard initializer stuff
-exports.init = WebRequest;
-
-exports.create = function(opts) {
-    return new WebRequest(opts);
-}
-
-exports.extend = function(subclass) {
-    subclass.prototype = WebRequest.prototype;
-}
+exports.getJSON = methodRequest("GET",true);
+exports.deleteJSON = methodRequest("DELETE",true);
+exports.putJSON = methodRequest("PUT",true);
+exports.postJSON = methodRequest("POST",true);

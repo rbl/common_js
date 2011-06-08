@@ -107,9 +107,14 @@ WebRequest.prototype.start = function() {
         //   if (callback) return callback(new Error("Got server response "+response.statusCode), null);
         // }
         //
-        //Logger.log('Response code is ', response.statusCode);
+        Logger.log('Response code is ', response.statusCode);
         if (response.statusCode != 200) {
-            return self.callback({code:response.statusCode});
+            try {
+                self.callback({code:response.statusCode});
+            } catch (err) {
+                Logger.logErrorObj(err);
+                return;
+            }
         }
         
         response.setEncoding('utf8');

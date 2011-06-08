@@ -131,9 +131,9 @@ exports.validate = function(req,res,next,meta,target) {
  * @param {Object} controller - controller module with sub-names for this endpoint
  * @type void
  */
-exports.register = function(app, name, controller) {
+exports.register = function(app, name, controller, options) {
     var meta = controller.meta;
-    var tokenStore = app.set("bldstr tokenStore");
+    if (!options) options = {};
     
     for (key in meta) {
         var data = meta[key];
@@ -160,9 +160,9 @@ exports.register = function(app, name, controller) {
         // The suffix is added unless configured not to
         var stack = [endpoint];
         if (data.preSessionHandler) stack.push(data.preSessionHandler);
-        if (data.required_scope) stack.push(Tokens.SessionToken(tokenStore, data.required_scope, data.sendScopeFailure));
+        if (options.beforeFilter) stack.push(options.beforeFilter(data));
         stack.push(controller[key]);
-        if (!data.dontSaveSession) Tokens.SessionSaver();
+        if (options.afterFilter) stack.push(options.afterFilter(data));
 
         for(var ix = 0; ix<methods.length; ix++) {
             var method = methods[ix];

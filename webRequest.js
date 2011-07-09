@@ -77,7 +77,7 @@ WebRequest.prototype.start = function() {
         } else {
             if (typeof this.body === "object") {
                 Logger.debug("Writing body, encoding using query string");
-                bodyContent = QueryString.encode(body);
+                bodyContent = QueryString.encode(this.body);
                 headers["Content-Type"] = "application/x-www-form-urlencoded";
             } else {
                 Logger.debug('Writing body, no additional encoding');
@@ -107,15 +107,15 @@ WebRequest.prototype.start = function() {
         //   if (callback) return callback(new Error("Got server response "+response.statusCode), null);
         // }
         //
-        Logger.log('Response code is ', response.statusCode);
-        if (response.statusCode != 200) {
-            try {
-                self.callback({code:response.statusCode});
-            } catch (err) {
-                Logger.logErrorObj(err);
-                return;
-            }
-        }
+        Logger.debug('Response code is ', response.statusCode);
+        // if (response.statusCode != 200) {
+        //     try {
+        //         self.callback({code:response.statusCode});
+        //     } catch (err) {
+        //         Logger.logErrorObj("Sending status code", err);
+        //         return;
+        //     }
+        // }
         
         response.setEncoding('utf8');
         response.on('data', function(chunk) {

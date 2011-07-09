@@ -10,6 +10,7 @@ module.exports = function() {
     return function(req, res, next) {
         // Log the incoming request
         counter++;
+        Logger.hr();
         Logger.warni(counter, "Starting", req.method, req.url, "\n", req.headers);
 
         // Wrap writeHead to hook into the exit path through the layers.
@@ -20,8 +21,11 @@ module.exports = function() {
                 res.writeHead = writeHead;
                 // Put the original back
                 // Log the outgoing response
-                Logger.warni(counter, "Ending w/", req.method, req.url, code, "\n", headers);
+                Logger.warni(counter, "Ending ", req.method, req.url, code, "\n", headers);
                 //L.logStackUntil();
+                
+                Logger.debug(res.getHeader("Set-Cookie"));
+                
                 res.writeHead(code, headers);
                 // Call the original
             };

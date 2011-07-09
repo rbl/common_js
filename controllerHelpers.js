@@ -3,7 +3,6 @@
  */
 var Logger = require("logger");
 var JSON = require("json");
-var Tokens = require("tokens");
 
 /**
  * Send an object encoded as json as the response data. The optional code
@@ -37,7 +36,7 @@ exports.sendJSON = function(res,obj,code) {
  * @param {int} code - the HTTP response code, will default to 400 if not specified
  * @type void
  */
-exports.sendJSONError = function(res, error, description, code) {
+exports.sendJSONError = function(req, res, error, description, code) {
     Logger.error("Sending JSON Error",error,description);
     var result = {
         error: error,
@@ -81,6 +80,16 @@ exports.validate = function(req,res,next,meta,target) {
         !goodParam(meta,"meta") || !goodParam(target,"target")) return;
     var toCheck = meta.params;
 
+    var errorHandler = meta.errorHandler;
+    if ((typeof errorHandler) === "string") {
+        if (errorHandler === "json") {
+            errorHandler = exports.sendJSONError;
+        }
+    }
+    if (!errorHandler) {
+        errorHandler = exports.sendJSONError;
+    }
+
     // See if they are requesting meta data
     if (req.param("meta")) {
         Logger.debug("Sending meta information");
@@ -92,7 +101,7 @@ exports.validate = function(req,res,next,meta,target) {
         // Nothing to do, pass it on
         Logger.debugi("No parameters to check, target is",target);
 
-        return target(req,res,next);
+        return target(req,res,next,meta);
     }
 
     // TODO: Enhance this checking so that for the early requests with redirect_uri's we can
@@ -102,17 +111,37 @@ exports.validate = function(req,res,next,meta,target) {
     // Check for the presence of each required parameter
     for (key in toCheck) {
         Logger.debug("Checking key", key);
+        var value = req.param(key);
+
         var keyDesc = toCheck[key];
         if (keyDesc.required) {
-            var value = req.param(key);
             Logger.debugi("  it is required, value=",value);
             if (!value) {
                 var error = "Required parameter is missing";
                 var description = "The required parameter '" + key + "' is missing.";
-                return exports.sendJSONError(res, error, description, 400);
+                return errorHandler(req, res, error, description, 400);
             }
         } else {
             Logger.debugi("  - is not required");
+        }
+        
+        if (value) {
+            // If it is there, it has to match the other validation
+            if (keyDesc.minLength) {
+                if (value.length < keyDesc.minLength) {
+                    var error = "Parameter to short";
+                    var description = "The parameter '" + key + "' must be at least "+keyDesc.minLength+" characters long.";
+                    return errorHandler(req, res, error, description, 400);
+                }
+            }
+            
+            if (keyDesc.validation) {
+                if (!keyDesc.validation.test(value)) {
+                    var error = "Bad format";
+                    var description = "The parameter '" + key + "' was not in the required format.";
+                    return errorHandler(req, res, error, description, 400);                    
+                }
+            }
         }
     }
 
@@ -121,6 +150,22 @@ exports.validate = function(req,res,next,meta,target) {
     // we can format exceptions as JSON or maybe we just need to do that in a middleware error handler.
     return target(req,res,next,meta);  
 }
+
+
+function addFilters(stack, data, list) {
+    if (typeof list === "function") {
+        // Call it directly
+        var mw = list(data);
+        if (mw) stack.push(mw);
+    } else {
+        // Presumably it's an array then
+        for(var ix = 0; ix<list.length; ix++) {
+            var mw = list[ix](data);
+            if (mw) stack.push(mw);
+        }
+    }
+}
+
 
 /**
  * Register a provided controller module. The controller is slightly introspected
@@ -138,10 +183,16 @@ exports.register = function(app, name, controller, options) {
     for (key in meta) {
         var data = meta[key];
 
-        var endpoint = "/" + name;
-        if (data.endpoint) {
+        // Logger.info("name='"+name+"' data.endpoint='"+data.endpoint+"' name.length="+name.length);                
+        var endpoint = (name.length > 0) ? ("/" + name) : "";
+        if (data.exactEndpoint) {
+            endpoint = data.exactEndpoint;
+        } else if (data.endpoint) {
             endpoint += "/" + data.endpoint;
         }
+        
+        // Safety
+        if (endpoint.length===0) endpoint = "/";
 
         Logger.info("endpoint = ",endpoint);
 
@@ -160,10 +211,29 @@ exports.register = function(app, name, controller, options) {
         // The suffix is added unless configured not to
         var stack = [endpoint];
         if (data.preSessionHandler) stack.push(data.preSessionHandler);
-        if (options.beforeFilter) stack.push(options.beforeFilter(data));
-        stack.push(controller[key]);
-        if (options.afterFilter) stack.push(options.afterFilter(data));
+        if (options.beforeFilter) addFilters(stack, data, options.beforeFilter);
+        
+        if (data.middleware) {
+            // If an explict set of middleware is defined, use it. This can be
+            // either an array or a single function
+            if ((typeof data.middleware) === "object") {
+                // Logger.debug("Adding middleware from array");
+                for(var ix=0; ix<data.middleware.length; ix++) {
+                    Logger.debugi("typeof ",data.middleware[ix])
+                    stack.push(data.middleware[ix]);
+                }
+            } else {
+                // Logger.debug("Adding single middleware");
+                stack.push(data.middleware);
+            }
+        } else {
+            // Otherwise use convention to find the middleware
+            stack.push(controller[key]);            
+        }
+        
+        if (options.afterFilter) addFilters(stack, data, options.afterFilter);
 
+        Logger.debugi("Stack=",stack);
         for(var ix = 0; ix<methods.length; ix++) {
             var method = methods[ix];
             app[method].apply(app, stack);

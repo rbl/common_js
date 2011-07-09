@@ -145,7 +145,7 @@ exports.isoFromDate = function(d) {
     + pad(d.getUTCHours()) + ':'
     + pad(d.getUTCMinutes()) + ':'
     + pad(d.getUTCSeconds()) + '.'
-    + pad(d.getUTCMilliseconds()) + 'Z';
+    + pad(d.getUTCMilliseconds()) + '-0000';
 };
 
 /**

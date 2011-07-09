@@ -270,7 +270,7 @@ exports.propertyNamesAndValues = function(obj) {
  *  Returns a sorted list of method names available for obj
  */
 exports.methodNames = function(obj)
- {
+{
     var methods = [];
     for (var key in obj) {        
         if ("function" === typeof(obj[key])) methods.push(key);
@@ -301,7 +301,7 @@ exports.rmTree = function(path, next) {
     //Logger.debug("rmTree in ",path);
     
     FS.readdir(path, function(err, files) {
-        if (Logger.logErrorObj(err)) {
+        if (Logger.logErrorObj("Couldn't read directory", err)) {
             return next(err);
         }
         if (!files) {
@@ -310,7 +310,7 @@ exports.rmTree = function(path, next) {
 
         var pendingRemovals = 0;
         function removalFinished(err) {
-            if (Logger.logErrorObj(err)) {
+            if (Logger.logErrorObj("Removal failed", err)) {
                 pendingRemovals = -1;
                 return next(err);
             }
@@ -319,7 +319,7 @@ exports.rmTree = function(path, next) {
             if (pendingRemovals===0) {
                 // Totally done, can now nuke the original path
                 FS.rmdir(path, function(err) {
-                    Logger.logErrorObj(err);
+                    Logger.logErrorObj("rmdir failed", err);
                     next(err);
                 });
             }

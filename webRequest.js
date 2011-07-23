@@ -71,7 +71,7 @@ WebRequest.prototype.start = function() {
     var bodyContent;
     if (this.body) {
         if (this.asJSON) {
-            Logger.debug('Writing body, encoding as JSON');
+            Logger.debug('Writing body, encoding as JSON');            
             bodyContent = JSON.stringify(this.body);
             headers["Content-Type"] = "application/json";
         } else {
@@ -128,7 +128,14 @@ WebRequest.prototype.start = function() {
             if (self.callback) {
                 if (responseBuffer && responseBuffer.length && self.asJSON) {
                     //Logger.warni("Response be", responseBuffer);
-                    return self.callback(null, response, JSON.parse(responseBuffer));
+                    var buff = null;
+                    try {
+                        buff = JSON.parse(responseBuffer);
+                    } catch (e) {
+                        // ignore it ...
+                        Logger.debugi("Supposedly JSON response failed to parse",e);
+                    }
+                    return self.callback(null, response, buff);
                 } else {
                     return self.callback(null, response, responseBuffer);
                 }
@@ -168,7 +175,7 @@ function parseStandardArguments(list) {
 }
 
 
-function methodRequest(method, json) {
+exports.methodRequest = function methodRequest(method, json) {
     return function(standardArguments) {
         args = parseStandardArguments(arguments);
         args.method = method;
@@ -178,12 +185,12 @@ function methodRequest(method, json) {
     }
 }
 
-exports.get = methodRequest("GET");
-exports.delete = methodRequest("DELETE");
-exports.put = methodRequest("PUT");
-exports.post = methodRequest("POST");
+exports.get = exports.methodRequest("GET");
+exports.delete = exports.methodRequest("DELETE");
+exports.put = exports.methodRequest("PUT");
+exports.post = exports.methodRequest("POST");
 
-exports.getJSON = methodRequest("GET",true);
-exports.deleteJSON = methodRequest("DELETE",true);
-exports.putJSON = methodRequest("PUT",true);
-exports.postJSON = methodRequest("POST",true);
+exports.getJSON = exports.methodRequest("GET",true);
+exports.deleteJSON = exports.methodRequest("DELETE",true);
+exports.putJSON = exports.methodRequest("PUT",true);
+exports.postJSON = exports.methodRequest("POST",true);

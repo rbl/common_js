@@ -11,7 +11,8 @@ module.exports = function() {
         // Log the incoming request
         counter++;
         Logger.hr();
-        Logger.warni(counter, "Starting", req.method, req.url, "\n", req.headers);
+        Logger.debugi(counter, "Starting", req.method, req.url, "\n", req.headers);
+        Logger.infoi(counter, "Body", req.body);
 
         // Wrap writeHead to hook into the exit path through the layers.
         var writeHead = res.writeHead;
@@ -21,14 +22,15 @@ module.exports = function() {
                 res.writeHead = writeHead;
                 // Put the original back
                 // Log the outgoing response
-                Logger.warni(counter, "Ending ", req.method, req.url, code, "\n", headers);
+                Logger.warni(counter, "Ending ", req.method, req.url, code);
+                if (headers) Logger.debugi(counter, "Headers\n", headers);
                 //L.logStackUntil();
                 
                 var cookie = res.getHeader("Set-Cookie");
                 if (cookie) {
                     Logger.debug("Set-Cookie:",cookie);
                 } else {
-                    Logger.debug("No Set-Cookie header");
+                    //Logger.debug("No Set-Cookie header");
                 }
                 
                 res.writeHead(code, headers);

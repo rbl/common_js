@@ -24,7 +24,12 @@ module.exports = function() {
                 Logger.warni(counter, "Ending ", req.method, req.url, code, "\n", headers);
                 //L.logStackUntil();
                 
-                Logger.debug(res.getHeader("Set-Cookie"));
+                var cookie = res.getHeader("Set-Cookie");
+                if (cookie) {
+                    Logger.debug("Set-Cookie:",cookie);
+                } else {
+                    Logger.debug("No Set-Cookie header");
+                }
                 
                 res.writeHead(code, headers);
                 // Call the original

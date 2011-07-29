@@ -7,6 +7,7 @@ var Events = require("events");
 var Logger = require("logger");
 var PK = require("pk");
 var Queue = require("./queue");
+var codeNames = require("codeNames").shared();
 
 /**
  * ServerConnection constructor
@@ -25,6 +26,10 @@ function ServerConnection(mqServer, stream) {
     // Configure the stream
     // TODO: Establish secure credentials as necessary here
     var self = this;
+
+    //Logger.info("stream=>",PK.propertyNamesAndValues(stream));
+    this.remoteAddress = stream.remoteAddress;
+    this.remotePort = stream.remotePort;
 
     this.queue = Queue.create(stream);
     // Setup a hook so that we can veto unauthenticated messages
@@ -80,8 +85,8 @@ ServerConnection.prototype.preDispatchAuthenticator = function(msg, next) {
     // Since everything MUST have an identifier, make one up if the client didn't send one (lowsy client!)
     // Using the token for an identifier would be a horrible idea because the token grants
     // identity along with it's associated authorizations.
-    var ident = msg.ident || PK.uuid();
-    self.parent.registerConnection(token, ident, self, function(err, authenticated) {
+    var ident = msg.ident || codeNames.getSimpleName({defaultName:PK.uuid()});
+    self.parent.registerConnection(token, ident, self, function(err, authenticated, ident) {
         
         Logger.debugi("Back from registerConnection(",err,",",authenticated,")");
         
@@ -103,6 +108,12 @@ ServerConnection.prototype.preDispatchAuthenticator = function(msg, next) {
 
         // Don't need the hook anymore
         delete self.queue.preDispatchHook;
+
+        // Pass the successful registration back to the client
+        self.queue.sendMessage({
+              type: "ident"
+            , ident: ident
+        });
 
         // Don't allow the authentication message to be shown to anyone else
         return next();

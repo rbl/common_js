@@ -179,7 +179,7 @@ MQServer.prototype.registerConnection = function(token, ident, connection, next)
             
             // And that's it!
             Logger.debug("Successful registration completed okalie dokalie");
-            return next(null, true);
+            return next(null, true, ident);
         });
     });
 }

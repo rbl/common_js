@@ -80,7 +80,7 @@ WebRequest.prototype.start = function() {
     if (this.body) {
         if (this.asJSON) {
             Logger.debug('Writing body, encoding as JSON');
-            bodyContent = JSON.stringify(body);
+            bodyContent = JSON.stringify(this.body);
             reqOptions.headers["Content-Type"] = "application/json";
         } else {
             if (typeof this.body === "object") {

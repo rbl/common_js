@@ -3,6 +3,7 @@
  */
 
 var Net = require("net");
+var TLS = require("tls");
 var ChildProcess = require("child_process");
 var Os = require("os");
 var Util = require("util");
@@ -20,16 +21,24 @@ var ServerConnection = require("./serverConnection");
  * 
  * @constructor
  */
-function MQServer() {
+function MQServer(cfg) {
     Events.EventEmitter.call(this);
 
-    this.config = {};
+    this.config = cfg || {};
 
     this.connectionByToken = {};
     this.pendingConnections = [];
 }
 
 Util.inherits(MQServer, Events.EventEmitter);
+
+/**
+ * Create a new MQServer  
+ * @type MQServer
+ */
+exports.create = function(cfg) {
+    return new MQServer(cfg);
+}
 
 /**
  * Handler for the "connection" event for the net.Server instance
@@ -60,9 +69,12 @@ MQServer.prototype.serverClose = function() {
 /**
  * Handler for the "error" event of the Net.server instance. Presumably one
  * of the most frequent errors could be EADDRINUSE just because of the way
- * OS's might keep sockets open for a moment after a process dies. Since we
- * want the server running pretty much all the time, if any error occurs, we
- * are just going to wait a moment (1 second) and try to re-open the server.
+ * OS's might keep sockets open for a moment after a process dies. 
+ * 
+ * In the original version we would always try to re-listen here. Now that
+ * will only happen if autoRestart is true in the configuration object. If
+ * that value is set we will attempt to restart the server after a 1 second
+ * delay.
  *
  * @param {Error} err The error that occured.
  */
@@ -72,13 +84,53 @@ MQServer.prototype.serverError = function(err) {
     }
 
     // No matter what, close and retry in 1 second
-    Logger.warn(" closing and retrying in 1 second ...");
+    if (this.config.autoRestart) {        
+        Logger.warn(" autoRestart: closing and retrying in 1 second ...");
+        var self = this;
+        setTimeout(function() {
+            self.server.close();
+            self.server.listen(this.config.port, this.config.host);
+        }
+        , 1000);
+    } else {
+        
+        Logger.warn(" no autorestart. We are dead.");
+    }
+}
+
+/**
+ * Internal function to create the socket serer instance. If one exists it will
+ * be overwritten - which is potentially sucky and bad, so that's why some other
+ * method like either start() or getServerSocket() should be used instead because
+ * they respect an existing server instance.
+ */
+MQServer.prototype.createSocketServer = function() {
     var self = this;
-    setTimeout(function() {
-        self.server.close();
-        self.server.listen(this.config.port, this.config.host);
-    },
-    1000);
+
+    var connectEvent = "connection";
+    if (self.config.useTLS) {
+        Logger.debug("Configuring to use TLS");
+        var options = {
+              key: self.config.key
+            , cert: self.config.cert
+        };
+        
+        self.server = TLS.createServer(options);
+        connectEvent = "secureConnection";
+    } else {
+        self.server = Net.createServer();        
+    }
+    
+    // These 3 event handlers are our real connection to the rest of the world
+    self.server.on(connectEvent, function(stream) {
+        self.serverConnection(stream)
+    });
+    self.server.on("close", function() {
+        self.serverClose()
+    });
+    self.server.on("error", function(err) {
+        self.serverError(err)
+    });
 }
 
 /**
@@ -87,24 +139,44 @@ MQServer.prototype.serverError = function(err) {
  */
 MQServer.prototype.start = function() {
     
+    if (this.initializedUsing) {
+        Logger.error("Attempted to initialize an mqServer object multiple times. The first time was via ",this.initializedUsing);
+        Logger.errori("My config is ",this.config);
+        return null;
+    }
+    
+    this.initializedUsing = "start()";
+    
     Logger.log("Starting messageQueueServer with configuration", this.config);
 
-    this.server = Net.createServer();
-    var self = this;
-    this.server.on("connection",
-    function(stream) {
-        self.serverConnection(stream)
-    });
-    this.server.on("close",
-    function() {
-        self.serverClose()
-    });
-    this.server.on("error",
-    function(err) {
-        self.serverError(err)
-    });
+    if (!this.server) {
+        this.createSocketServer();
+    }
 
     this.server.listen(this.config.port, this.config.host)
+}
+
+/** 
+ * An alternative way to initialze the MQServer which is compatible with the cluster library.
+ * Instead of calling listen ourself directly and then managing to sit on that socket and
+ * restart if we get an error, this simply returns the configured server instance which can
+ * be passed to cluster or which the caller can call listen() on themselves.
+ */
+MQServer.prototype.getSocketServer = function() {
+    
+    if (this.initializedUsing) {
+        Logger.error("Attempted to initialize an mqServer object multiple times. The first time was via ",this.initializedUsing);
+        Logger.errori("My config is ",this.config);
+        return null;
+    }
+    
+    this.initializedUsing = "getSocketServer()";
+    
+    if (!this.server) {
+        this.createSocketServer();
+    }
+    
+    return this.server;
 }
 
 
@@ -197,10 +269,4 @@ MQServer.prototype.connectionClosed = function(token, connection) {
 }
 
 
-/**
- * Create a new MQServer  
- * @type MQServer
- */
-exports.create = function() {
-    return new MQServer();
-}
+

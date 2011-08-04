@@ -1,5 +1,6 @@
 var URL = require("url");
 var Http = require("http");
+var Https = require("https");
 var Sys = require("sys");
 var Logger = require("logger");
 var JSON = require("json");
@@ -38,20 +39,24 @@ WebRequest.prototype.start = function() {
     
     Logger.debugi("WebRequest.start()", this.method, this.url.host, this.url.port, this.url.pathname, this.asJSON)
 
-    // Todo, in the future cache these. For now, make them all new
-    var client = Http.createClient(this.url.port, this.url.hostname);
-
-    var headers = {
-        'host': this.url.hostname
-    };
+    var reqOptions = {};
     
+    reqOptions.host = this.url.host;
+    reqOptions.port = this.url.port;
+    reqOptions.method = this.method;
+    
+    ///////////
+    // Some headers. Looks like node adds the Host header for us just fine
+    reqOptions.headers = {};
     if (this.token) {
         //Logger.errori("Adding token",this.token);
-        headers['Authorization'] = "OAuth2 "+this.token;
+        reqOptions.headers['Authorization'] = "OAuth2 "+this.token;
     } else {
         //Logger.errori("---- NO OAUTH TOKEN ----");
     }
 
+    ///////////
+    // Setup the path
     var path = this.url.pathname;
     if (this.body && (this.method === "GET" || this.method === "DELETE")) {
         // These don't actually allow us to send content, so put this stuff in
@@ -67,37 +72,52 @@ WebRequest.prototype.start = function() {
         path += QueryString.stringify(this.body);
         this.body = null;
     }
-
+    reqOptions.path = path;
+    
+    //////////////
+    // Content for the body
     var bodyContent;
     if (this.body) {
         if (this.asJSON) {
-            Logger.debug('Writing body, encoding as JSON');            
-            bodyContent = JSON.stringify(this.body);
-            headers["Content-Type"] = "application/json";
+            Logger.debug('Writing body, encoding as JSON');
+            bodyContent = JSON.stringify(body);
+            reqOptions.headers["Content-Type"] = "application/json";
         } else {
             if (typeof this.body === "object") {
                 Logger.debug("Writing body, encoding using query string");
                 bodyContent = QueryString.encode(this.body);
-                headers["Content-Type"] = "application/x-www-form-urlencoded";
+                reqOptions.headers["Content-Type"] = "application/x-www-form-urlencoded";
             } else {
                 Logger.debug('Writing body, no additional encoding');
                 bodyContent = this.body;
-                headers["Content-Type"] = this.contentType || "text/plain";
+                reqOptions.headers["Content-Type"] = this.contentType || "text/plain";
             }
         }
     }
     
+    /////////////////////////////
+    // All ready to go now ....
     if (bodyContent) {
-        headers["content-length"] = bodyContent.length;
+        reqOptions.headers['Content-Length'] = bodyContent.length;
     }
     
-    var request = client.request(this.method, path, headers);
+
+    var request;
+    if (this.url.protocol === "https:") {
+        Logger.debug("Making a secure connection");
+        request = Https.request(reqOptions);
+    } else {
+        request = Http.request(reqOptions);
+    }
+    
+    // var request = client.request(this.method, path, headers);
     if (bodyContent) {
+        Logger.debug("Writing",bodyContent.length,"bytes of body content");
         request.write(bodyContent);
     }
+    request.end();
     
     var responseBuffer = "";
-    request.end();
 
     var self = this;
     request.on('response', function(response) {
@@ -143,11 +163,11 @@ WebRequest.prototype.start = function() {
         })
     });
 
-    client.on('error', function(error) {
-        if (self.callback) {
-            return self.callback(error);
+    request.on('error', function(error) {
+        if (callback) {
+            return callback(error);
         }
-        Logger.errori("HttpClient on 'error'", error);
+        Logger.errori("WebRequest on 'error'", error);
     });
 }
 

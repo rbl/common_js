@@ -2,6 +2,7 @@
  * Dependencies
  */
 var Net = require("net");
+var TLS = require("tls");
 var ChildProcess = require("child_process");
 var Os = require("os");
 var Util = require("util");
@@ -24,16 +25,17 @@ function MQClient() {
 
     // A default config. We expect this to be overriden externally
     this.config = {
-        url: {
-            host: "127.0.0.1",
-            port: 3001,
-        },
+          url: {
+              host: "127.0.0.1"
+            , port: 3001
+        }
     };
 
     // This should come from the server, after we have our oauth token
     this.streamConfig = {
-        host: "127.0.0.1",
-        port: 4444,
+          host: "127.0.0.1"
+        , port: 4444
+        , useTLS: false        
     };
 
     this.outgoingQueue = [];
@@ -105,24 +107,38 @@ MQClient.prototype.startStream = function() {
         return;
     }
 
-    Logger.log("Starting a new stream connection to", this.streamConfig.host, ":", this.streamConfig.port);
+    Logger.log("Starting a new stream connection to", this.streamConfig.host, ":", this.streamConfig.port, " with TLS?",this.streamConfig.useTLS);
 
-    var stream = Net.createConnection(this.streamConfig.port, this.streamConfig.host);
+    if (this.streamConfig.useTLS) {
+        // TODO: Establish secure credentials as necessary here
+        var streamOpts = {};
+        
+        var stream = TLS.connect(this.streamConfig.port, this.streamConfig.host, streamOpts, function() {
+            Logger.debug("Encrypted stream established. CA verified?", stream.authorized);
+            if (!stream.authorized) {
+                Logger.warni("Verification of CA failed:",stream.authorizationError);
+                Logger.warn("I'm going to presume that is ok, but I thought you should know.");
+            }
+            
+            // And then invoke our regular connect flow
+            self.streamConnect();
+        });
+    } else {
+        var stream = Net.createConnection(this.streamConfig.port, this.streamConfig.host);        
+    }
 
-    // TODO: Establish secure credentials as necessary here
     var self = this;
-    stream.on("connect",
-    function() {
+    // The connect event only exists on unencrypted streams, but it is safe to tie into
+    // on the TLS ones also
+    stream.on("connect", function() {
         self.streamConnect()
     });
-    stream.on("error",
-    function(error) {
+    stream.on("error", function(error) {
         self.streamError(error)
     });
 
     this.queue = Queue.create(stream);
-    this.queue.on("close",
-    function() {
+    this.queue.on("close", function() {
         self.queueClose();
     });
 
@@ -161,6 +177,8 @@ MQClient.prototype.start = function(callback) {
             if (grant.droneConfig.port) {
                 self.streamConfig.port = grant.droneConfig.port;
             }
+            
+            self.streamConfig.useTLS = grant.droneConfig.useTLS;
 
             // Start up the stream
             self.startStream();

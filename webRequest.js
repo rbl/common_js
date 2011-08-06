@@ -34,31 +34,34 @@ exports.make = function make(opts) {
 }
 
 WebRequest.prototype.start = function() {
-    if (!this.url.pathname) this.url.pathname = '/';
-    if (!this.url.port) this.url.port = 80;
     
-    Logger.debugi("WebRequest.start()", this.method, this.url.host, this.url.port, this.url.pathname, this.asJSON)
+    var self = this;
+    
+    if (!self.url.pathname) self.url.pathname = '/';
+    if (!self.url.port) self.url.port = 80;
+    
+    Logger.debugi("WebRequest.start()", self.method, self.url.host, self.url.port, self.url.pathname, self.asJSON)
 
     var reqOptions = {};
     
-    reqOptions.host = this.url.host;
-    reqOptions.port = this.url.port;
-    reqOptions.method = this.method;
+    reqOptions.host = self.url.host;
+    reqOptions.port = self.url.port;
+    reqOptions.method = self.method;
     
     ///////////
     // Some headers. Looks like node adds the Host header for us just fine
     reqOptions.headers = {};
-    if (this.token) {
-        //Logger.errori("Adding token",this.token);
-        reqOptions.headers['Authorization'] = "OAuth2 "+this.token;
+    if (self.token) {
+        //Logger.errori("Adding token",self.token);
+        reqOptions.headers['Authorization'] = "OAuth2 "+self.token;
     } else {
         //Logger.errori("---- NO OAUTH TOKEN ----");
     }
 
     ///////////
     // Setup the path
-    var path = this.url.pathname;
-    if (this.body && (this.method === "GET" || this.method === "DELETE")) {
+    var path = self.url.pathname;
+    if (self.body && (self.method === "GET" || self.method === "DELETE")) {
         // These don't actually allow us to send content, so put this stuff in
         // the url path as query parameters
         if (path.indexOf("?") == -1) {
@@ -69,28 +72,28 @@ WebRequest.prototype.start = function() {
             path += "&";
         }
 
-        path += QueryString.stringify(this.body);
-        this.body = null;
+        path += QueryString.stringify(self.body);
+        self.body = null;
     }
     reqOptions.path = path;
     
     //////////////
     // Content for the body
     var bodyContent;
-    if (this.body) {
-        if (this.asJSON) {
+    if (self.body) {
+        if (self.asJSON) {
             Logger.debug('Writing body, encoding as JSON');
-            bodyContent = JSON.stringify(this.body);
+            bodyContent = JSON.stringify(self.body);
             reqOptions.headers["Content-Type"] = "application/json";
         } else {
-            if (typeof this.body === "object") {
+            if (typeof self.body === "object") {
                 Logger.debug("Writing body, encoding using query string");
-                bodyContent = QueryString.encode(this.body);
+                bodyContent = QueryString.encode(self.body);
                 reqOptions.headers["Content-Type"] = "application/x-www-form-urlencoded";
             } else {
                 Logger.debug('Writing body, no additional encoding');
-                bodyContent = this.body;
-                reqOptions.headers["Content-Type"] = this.contentType || "text/plain";
+                bodyContent = self.body;
+                reqOptions.headers["Content-Type"] = self.contentType || "text/plain";
             }
         }
     }
@@ -103,14 +106,14 @@ WebRequest.prototype.start = function() {
     
 
     var request;
-    if (this.url.protocol === "https:") {
+    if (self.url.protocol === "https:") {
         Logger.debug("Making a secure connection");
         request = Https.request(reqOptions);
     } else {
         request = Http.request(reqOptions);
     }
     
-    // var request = client.request(this.method, path, headers);
+    // var request = client.request(self.method, path, headers);
     if (bodyContent) {
         Logger.debug("Writing",bodyContent.length,"bytes of body content");
         request.write(bodyContent);
@@ -164,8 +167,8 @@ WebRequest.prototype.start = function() {
     });
 
     request.on('error', function(error) {
-        if (callback) {
-            return callback(error);
+        if (self.callback) {
+            return self.callback(error);
         }
         Logger.errori("WebRequest on 'error'", error);
     });

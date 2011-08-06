@@ -107,7 +107,7 @@ Queue.prototype.streamData = function(data) {
  * @type void
  */
 Queue.prototype.streamDrain = function() {
-    Logger.debugi("streamDrain");
+    //Logger.debugi("streamDrain");
 
 }
 

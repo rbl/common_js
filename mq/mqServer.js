@@ -13,7 +13,6 @@ var Constants = require('constants');
 var Logger = require("logger");
 var WebRequest = require("webRequest");
 var PK = require("pk");
-var Drones = require("drones");
 var ServerConnection = require("./serverConnection");
 
 /**
@@ -21,24 +20,14 @@ var ServerConnection = require("./serverConnection");
  * 
  * @constructor
  */
-function MQServer(cfg) {
+var MQServer = function(cfg) {
     Events.EventEmitter.call(this);
 
     this.config = cfg || {};
-
-    this.connectionByToken = {};
-    this.pendingConnections = [];
 }
 
 Util.inherits(MQServer, Events.EventEmitter);
-
-/**
- * Create a new MQServer  
- * @type MQServer
- */
-exports.create = function(cfg) {
-    return new MQServer(cfg);
-}
+module.exports = MQServer;
 
 /**
  * Handler for the "connection" event for the net.Server instance
@@ -52,7 +41,6 @@ MQServer.prototype.serverConnection = function(stream) {
     // we don't hold on to it in the meantime, it would (probably) get garbage collected, which
     // would be not awesome.
     var connection = ServerConnection.create(this, stream);
-    this.pendingConnections.push(connection);
 }
 
 /**
@@ -182,91 +170,20 @@ MQServer.prototype.getSocketServer = function() {
 
 /**
  * Combination token (i.e. authentication) validation and registration of new connections.
+ * 
+ * You probably want to replace this in a subclass rather than relying on this implementation.
  *
  * @param {String} token - The oauth token received on the connection
  * @param {ident} ident - The identity object for this client, contains lots of detail
  * @param {ServerConnection} connection - The actual connection object itself.
  * @param {function(err,authenticated)} next - Callback to be told if the connection is authenticated successfully
- * @returns true if authentication is fine, false if things are bad (i.e. bad token)
  * @type bool
  */
 MQServer.prototype.registerConnection = function(token, ident, connection, next) {
     
-    var self = this;
-    
-    // Take this connection out of "pending"
-    var ix = self.pendingConnections.indexOf(connection);
-    if (ix !== -1) {
-        self.pendingConnections = self.pendingConnections.splice(ix, 1);
-    }
-
-    //Logger.infoi("my config is", this.config);
-
-
-    // Make sure the token is allowed for this sort of thing
-    
-    self.config.tokenStore.get(token, function(err,session) {
-        
-        if (Logger.logErrorObj("Fetching oauth token", err)) {
-            return next(err,false);
-        }
-        
-        var allowed = false;
-        Logger.infoi("For", token, "Got session", session);
-        if (session && session.scopes) {
-            for (ix in session.scopes) {
-                var scope = session.scopes[ix];
-                Logger.info("Checkin scope", scope);
-                if (scope == "drone") {
-                    allowed = true;
-                    break;
-                }
-            }
-        }
-
-        if (!allowed) {
-            Logger.warn("Couldn't authenticate that token, fail.");
-            return next(null,false);
-        }
-
-        // Register the connection
-        if (!self.config.registry) {
-            Logger.errori("Got a new authenticated connection, but no drone registry. Denying the connection");
-            return next(null,false);
-        }
-
-        Logger.info("Creating a new DroneConnection object");
-        self.config.registry.register(token, ident, connection, function(err) {
-            
-            if (Logger.logErrorObj("Failed to register connection in registry",err)) {
-                return next(err, false);
-            }
-            
-            // Cool, they are all registered and stuff
-            
-            // Need to know when that connection closes so we can unregister it
-            connection.on("close", function() {
-                self.connectionClosed(ident, connection);
-            });
-            
-            // And that's it!
-            Logger.debug("Successful registration completed okalie dokalie");
-            return next(null, true, ident);
-        });
-    });
-}
-
-/**
- * Handler for the "close" event from MessageQueueConnection instances.
- *      
- * @param {String} token - the token used to register the connection originally
- * @param {MessageQueueConnection} connection - the connection itself
- */
-MQServer.prototype.connectionClosed = function(token, connection) {
-    if (this.config.registry) {
-        this.config.registry.unregister(token);
+    // The default implementation is to say, sure, yeah, everyone is authenticated!
+    // (in other words, you probably want to replace this in a subclass)
+    if (next) {
+        next(null, true);
     }
 }
-
-
-

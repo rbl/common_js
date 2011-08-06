@@ -221,7 +221,7 @@ CodeNames.prototype.style_wild = function style_wild(opts) {
 
 CodeNames.prototype.style_simple = function style_wild(opts) {
     opts.pattern = "noun noun";
-    opts.spaceChar = "-";
+    opts.spaceChar = "_";
     return this.style_pattern(opts);
 }
 

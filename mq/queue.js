@@ -83,6 +83,7 @@ Queue.prototype.streamConnect = function() {
 Queue.prototype.streamData = function(data) {
     //Logger.logi("streamData", data);
 
+    Logger.debug("0. streamData len=",data ? data.length : "null");
     // Add it to the deque
     if (data) {
         this.deque.writeBuffer(data);
@@ -359,7 +360,7 @@ Queue.prototype.dispatchMessage = function() {
 Queue.prototype.dispatchData = function() {
     try {
         data = this.incomingBuffer.slice(0, this.amtRequired);
-        //Logger.debugi("Dispatching data, channel=", this.incomingChannel, "size=", this.amtRequired, "content=", data.toString());
+        Logger.debugi("Dispatching data, channel=", this.incomingChannel, "size=", this.amtRequired);
         this.emit("c" + this.incomingChannel, data);
     } catch(err) {
         Logger.warni("Error during channel", this.incomingChannel, "dispatch", err);
@@ -375,4 +376,19 @@ Queue.prototype.streamWrite = function(data) {
     if (!this.stream.write(data)) {
         this.emit("buffering");
     }
+}
+
+
+Queue.prototype.pause = function() {
+    this.stream.pause();
+    this.parsingPaused = true;
+}
+
+Queue.prototype.resume = function() {
+    var self = this;
+    self.parsingPaused = false;
+    self.stream.resume();
+    process.nextTick(function() {
+        self.streamData();
+    });
 }

@@ -83,7 +83,6 @@ Queue.prototype.streamConnect = function() {
 Queue.prototype.streamData = function(data) {
     //Logger.logi("streamData", data);
 
-    Logger.debug("0. streamData len=",data ? data.length : "null");
     // Add it to the deque
     if (data) {
         this.deque.writeBuffer(data);
@@ -217,7 +216,11 @@ Queue.prototype.getNewTransmitChannel = function() {
  * @param {String|Buffer} data - The data to send
  * @type void
  */
+var maxDataChunkSize = 4096 * 2;
 Queue.prototype.sendDataOnChannel = function(data, channel) {
+    
+    var self = this;
+    
     if (typeof channel == 'undefined') {
         Logger.hr();
         Logger.errori("Attempting to send", data.length, "bytes on undefined channel. Boo!");
@@ -229,16 +232,33 @@ Queue.prototype.sendDataOnChannel = function(data, channel) {
         data = Buffer(data.toString());
     }
 
-    // The amount of data we be writing, plus the channel identifier
-    PK.writeUInt32(data.length + 4, this.channelTemp);
-    this.streamWrite(this.channelTemp);
+    if (data.length > maxDataChunkSize) {
+        // Because sending huge chunks requires lots of buffering on the other end and tends
+        // to blow up writes in a horrible way, cut this up into smaller chunks
+        var done = 0;
+        while(done < data.length) {
+            //Logger.info("Sending smaller chunk done=",done);
+            var toDo = data.length - done;
+            if (toDo > maxDataChunkSize) toDo = maxDataChunkSize;
+            
+            var chunk = data.slice(done, done+toDo);
+            self.sendDataOnChannel(chunk, channel);
+            done += toDo;
+        }
+        
+    } else {
+        // It's just a single chunk
+        // The amount of data we be writing, plus the channel identifier
+        PK.writeUInt32(data.length + 4, self.channelTemp);
+        self.streamWrite(this.channelTemp);
 
-    // First 4 bytes are the channel
-    PK.writeUInt32(channel, this.channelTemp);
-    this.streamWrite(this.channelTemp);
+        // First 4 bytes are the channel
+        PK.writeUInt32(channel, self.channelTemp);
+        self.streamWrite(self.channelTemp);
 
-    // The data itself
-    this.streamWrite(data);
+        // The data itself
+        self.streamWrite(data);
+    }
 }
 
 /**

@@ -94,9 +94,9 @@ Queue.prototype.streamData = function(data) {
         this.nextParseFunction();
     }
     
-    if (this.parsingPaused) {
-        Logger.debug("Stopped parsing because it's paused");
-    }
+    // if (this.parsingPaused) {
+    //     Logger.debug("Stopped parsing because it's paused");
+    // }
 }
 
 /**
@@ -357,7 +357,7 @@ Queue.prototype.dispatchMessage = function() {
             
             self.preDispatchHook(msg, function() {
                 // Unpause and restart the parsing loop
-                Logger.debug("Unpausing parsing (I think...)");
+                //Logger.debug("Unpausing parsing (I think...)");
                 self.parsingPaused = false;
                 self.streamData(null);
             });

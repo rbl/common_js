@@ -189,6 +189,14 @@ Queue.prototype.sendMessage = function(msg) {
  * 
  * In the future we might do a generic channel close mechanism if we really start
  * having a lot of streaming going back and forth and what not.
+ * 
+ * The other important thing to note is that channels are only safe if they are
+ * uni-directional. While there is no technical difference of having transmitters
+ * or receivers define the channel number and then communicate it to their peer, it is
+ * important that all use of a single queue follows a single convention.
+ * 
+ * Therefore, by convention, I'm declaring that transmitters should be the ones to
+ * define channel numbers.
  *
  * @returns A new channel number
  * @type int
@@ -336,10 +344,10 @@ Queue.prototype.dispatchMessage = function() {
             self.emit("message", msg);
         }
     } catch(err) {
-        Logger.warni("Error during message dispatch", err);
-        if (err.stack) {
-            Logger.warni(err.stack);
-        }
+        Logger.logErrorObj("Error during message dispatch", err);
+        // if (err.stack) {
+        //     Logger.warni(err.stack);
+        // }
         
         // This ALWAYS unpauses messages for safety
         self.parsingPaused = false;

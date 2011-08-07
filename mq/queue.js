@@ -201,7 +201,7 @@ Queue.prototype.sendMessage = function(msg) {
  * @returns A new channel number
  * @type int
  */
-Queue.prototype.getNewChannel = function() {
+Queue.prototype.getNewTransmitChannel = function() {
     return nextChannel++;
 }
 
@@ -209,7 +209,7 @@ Queue.prototype.getNewChannel = function() {
  * Send data on a given channel. The data can be a string or preferably a
  * full Buffer object. You presumably could send data on channel 0 - but probably
  * shouldn't. That's reserved for JSON messages. To get a new channel to 
- * send on, use getNewChannel and then communicate this to your peer in some
+ * send on, use getNewTransmitChannel and then communicate this to your peer in some
  * use dependent fashion.
  *
  * @param {int} channel - The channel this data will be sent on

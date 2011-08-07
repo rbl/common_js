@@ -62,8 +62,7 @@ MQClient.prototype.createIdentity = function(next) {
     }
 
     // Get some system information here ...
-    ChildProcess.exec("uname -a",
-    function(err, stdout, stderr) {
+    ChildProcess.exec("uname -a", function(err, stdout, stderr) {
         if (stdout) {
             ident.uname = stdout;
         }
@@ -161,8 +160,8 @@ MQClient.prototype.start = function(callback) {
 
         var url = PK.deepCopy(self.config.url);
         url.pathname = "/oauth/token";
-        WebRequest.postJSON(url, client_credentials,
-        function(err, response, grant) {
+        WebRequest.postJSON(url, client_credentials, function(err, response, grant) {
+            
             if (err) return callback(err);
 
             if (grant.error) return callback(new Error(grant.error_description));

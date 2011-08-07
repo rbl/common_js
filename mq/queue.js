@@ -108,7 +108,7 @@ Queue.prototype.streamData = function(data) {
  */
 Queue.prototype.streamDrain = function() {
     //Logger.debugi("streamDrain");
-
+    this.emit("drain");
 }
 
 /**
@@ -172,13 +172,13 @@ Queue.prototype.sendMessage = function(msg) {
     // Making the new buffer object all the time isn't awesome, but hopefully it ain't horrid
     out = new Buffer(JSON.stringify(msg));
     PK.writeUInt32(out.length + 4, this.channelTemp);
-    this.stream.write(this.channelTemp);
+    this.streamWrite(this.channelTemp);
 
     // First 4 bytes are the channel
     PK.writeUInt32(0, this.channelTemp);
-    this.stream.write(this.channelTemp);
+    this.streamWrite(this.channelTemp);
 
-    this.stream.write(out);
+    this.streamWrite(out);
 }
 
 /**
@@ -230,14 +230,14 @@ Queue.prototype.sendDataOnChannel = function(data, channel) {
 
     // The amount of data we be writing, plus the channel identifier
     PK.writeUInt32(data.length + 4, this.channelTemp);
-    this.stream.write(this.channelTemp);
+    this.streamWrite(this.channelTemp);
 
     // First 4 bytes are the channel
     PK.writeUInt32(channel, this.channelTemp);
-    this.stream.write(this.channelTemp);
+    this.streamWrite(this.channelTemp);
 
     // The data itself
-    this.stream.write(data);
+    this.streamWrite(data);
 }
 
 /**
@@ -370,3 +370,9 @@ Queue.prototype.dispatchData = function() {
     }
 }
 
+
+Queue.prototype.streamWrite = function(data) {
+    if (!this.stream.write(data)) {
+        this.emit("buffering");
+    }
+}

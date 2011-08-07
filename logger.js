@@ -319,7 +319,9 @@ exports.logStack = function(ex) {
     
     // Output the stacktrace
     logLine({level:exports.ERROR}, stack);
-}
+};
+
+exports.logStackTrace = exports.logStack;
 
 ///////////////////////////////////////////////////////////////////////////////
 /**

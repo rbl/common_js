@@ -44,7 +44,7 @@ WebRequest.prototype.start = function() {
 
     var reqOptions = {};
     
-    reqOptions.host = self.url.host;
+    reqOptions.host = self.url.hostname;
     reqOptions.port = self.url.port;
     reqOptions.method = self.method;
     

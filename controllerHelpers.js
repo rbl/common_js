@@ -40,7 +40,7 @@ exports.sendJSONError = function(req, res, error, description, code) {
     Logger.error("Sending JSON Error",error,description);
     var result = {
         error: error,
-        error_description: description
+        errorDescription: description
     };
 
     var code = code || 400;

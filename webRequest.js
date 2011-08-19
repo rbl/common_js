@@ -175,6 +175,9 @@ WebRequest.prototype.start = function() {
 }
 
 
+// Standard arguments are
+//   url, body, token, callback
+
 function parseStandardArguments(list) {
     //Logger.infoi("Parsing standard arguments",list);
     
@@ -217,3 +220,37 @@ exports.getJSON = exports.methodRequest("GET",true);
 exports.deleteJSON = exports.methodRequest("DELETE",true);
 exports.putJSON = exports.methodRequest("PUT",true);
 exports.postJSON = exports.methodRequest("POST",true);
+
+
+
+///////////////////////////////////////////////////////////////////////////////
+/**
+ * Extracts a standard error object from the results of a JSON request. Examines
+ * all 3 response variables and returns a consolidate single object if something
+ * bad happened or returns null if the request appears to have completed ok
+ * with a 200 and no error key in the returned object.
+ *
+ * The idea is that this let's you write code somewhat like this:
+ * 
+ *     WebRequest.getJSON(..., function(e,r,d) {
+ *         if (err = Logger.logErrorObj(WebRequest.extractJSONError(e,r,d))) next(err);
+ *    
+ *         // else, success do good things ...
+ *     }
+ * 
+ * @param {Object} err - error object
+ * @param {Response} response - web response object (has error code in it)
+ * @param {Object} data - the data object which might have a 'error' key
+ * @returns either the original error object, and error from the data object, an error
+ *          object representing a non-200 error code, or null if none of the previous
+ * @type Object
+ */
+exports.extractJSONError = function(err, response, data) {
+    if (err) return err;
+    
+    if (data && data.error) return data;
+    
+    if (response && response.code !== 200) return {error:"HTTP_"+response.code, errorDescription:response.message};
+    
+    return null;
+}

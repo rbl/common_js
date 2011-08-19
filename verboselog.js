@@ -12,7 +12,9 @@ module.exports = function() {
         counter++;
         Logger.hr();
         Logger.debugi(counter, "Starting", req.method, req.url, "\n", req.headers);
-        Logger.infoi(counter, "Body", req.body);
+        Logger.infoi(counter, "Request Params", req.params);
+        Logger.infoi(counter, "Request Query", req.query);
+        Logger.infoi(counter, "Request Body", req.body);
 
         // Wrap writeHead to hook into the exit path through the layers.
         var writeHead = res.writeHead;

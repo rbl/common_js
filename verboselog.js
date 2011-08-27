@@ -4,12 +4,37 @@
 
 var Logger = require("logger");
 
-module.exports = function() {
+module.exports = function(options) {
     var counter = 0;
+    
+    options = options || {};
+    options.simpleForm = options.simpleForm || {};
 
     return function(req, res, next) {
         // Log the incoming request
         counter++;
+        
+        //Logger.warni(req);
+        
+        // Look at the file extension to see if we want the simple form
+        var url = req.url;
+        var ix = url.indexOf("?");
+        debugger
+        if (ix!=-1) {
+            url = url.slice(0,ix);
+        }        
+        
+        ix = url.lastIndexOf(".");
+        if (ix!=-1) {
+            var ext = url.slice(ix+1);
+            
+            if (options.simpleForm[ext]) {
+                // Simple form only and we're out!
+                Logger.debugi(counter, req.method, req.url);
+                return next();
+            }
+        }
+        
         Logger.hr();
         Logger.debugi(counter, "Starting", req.method, req.url, "\n", req.headers);
         Logger.infoi(counter, "Request Params", req.params);

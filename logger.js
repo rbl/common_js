@@ -1,7 +1,33 @@
+/*****
+ * Copyright (c) 2011 Tom Seago
+ * 
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation 
+ * files (the "Software"), to deal in the Software without 
+ * restriction, including without limitation the rights to use, 
+ * copy, modify, merge, publish, distribute, sublicense, and/or 
+ * sell copies of the Software, and to permit persons to whom 
+ * the Software is furnished to do so, subject to the 
+ * following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be 
+ * included in all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES 
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND 
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT 
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, 
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, 
+ * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR 
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+
 /**
  * Module Dependencies
  */
-var Sys = require('sys');
+var Util = require('util');
 
 /**
  * Constants
@@ -15,6 +41,8 @@ var HR = "----------------------------------------------------------------------
 var CSI = '\x1B[';
 
 var COLOR_REST = CSI + "m";
+
+exports.SEPARATOR_CHAR = false;
 
 exports.DEBUG = 3;
 exports.INFO =  2;
@@ -74,9 +102,9 @@ function d3(num) {
  *                  options.continuation - if set to true, this line is considered a continuation
  *                                         of the previous log message. In general this means it won't get it's
  *                                         own unique timestamp.
- *                  options.inspect - if true the Sys.inpect method will be used instead of the to_string method for each argument
+ *                  options.inspect - if true the Util.inpect method will be used instead of the to_string method for each argument
  * @param {Object} other arguments - All other arguments are output to the log stream either 
- *                                   using their to_string method or by calling Sys.inspect on them
+ *                                   using their to_string method or by calling Util.inspect on them
  * @type void
  */
 function logLine(options) {
@@ -108,20 +136,20 @@ function logLine(options) {
         if (typeof val === 'undefined') val = 'undefined';
     
         if (options.inspect) {
-          if (typeof val === 'string') {
-            line += val;
-          } else {
-            line += Sys.inspect(val);
-          }
+            if (typeof val === 'string') {
+                line += val;
+            } else {
+                line += Util.inspect(val);
+            }
         } else {
-          if (val!=null) {
-              line += val.toString();
-          } else {
-              line += "null";
-          }
+            if (val!=null) {
+                line += val.toString();
+            } else {
+                line += "null";
+            }
         }
         
-        line += " ";
+        if (exports.SEPARATOR_CHAR)  line += exports.SEPARATOR_CHAR;
     }
     if (exports.DO_COLOR) line += COLOR_REST;
 
@@ -129,7 +157,7 @@ function logLine(options) {
     line = line.replace(/\n/gm, NEWLINE_HEADER);
 
     // And output it ...
-    Sys.puts(line);
+    console.log(line);
 }
 exports.logLine = logLine;
 
@@ -198,7 +226,7 @@ exports.error = exports.err;
 
 ///////////////////////////////////////////////////////////////////////////////
 /**
- * Log all arguments using Sys.inspect at the DEBUG level
+ * Log all arguments using Util.inspect at the DEBUG level
  *
  * @param {Object} arguments* - All arguments are logged
  * @type void
@@ -211,7 +239,7 @@ exports.debugi = function() {
 
 ///////////////////////////////////////////////////////////////////////////////
 /**
- * Log all arguments using Sys.inspect at the INFO level. Also aliased as 'logi'.
+ * Log all arguments using Util.inspect at the INFO level. Also aliased as 'logi'.
  *
  * @param {Object} arguments* - All arguments are logged
  * @type void
@@ -225,7 +253,7 @@ exports.logi = exports.infoi;
 
 ///////////////////////////////////////////////////////////////////////////////
 /**
- * Log all arguments using Sys.inspect at the WARN level. Also aliased as 'warningi'.
+ * Log all arguments using Util.inspect at the WARN level. Also aliased as 'warningi'.
  *
  * @param {Object} arguments* - All arguments are logged
  * @type void
@@ -239,7 +267,7 @@ exports.warningi = exports.warni;
 
 ///////////////////////////////////////////////////////////////////////////////
 /**
- * Log all arguments using Sys.inspect at the ERROR level. Also aliased as 'erri'.
+ * Log all arguments using Util.inspect at the ERROR level. Also aliased as 'erri'.
  *
  * @param {Object} arguments* - All arguments are logged
  * @type void
@@ -272,7 +300,7 @@ exports.hr = function(ch) {
         line = HR;
     }
 
-    Sys.puts(line);
+    console.log(line);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

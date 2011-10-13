@@ -30,7 +30,7 @@ module.exports = function(options) {
             
             if (options.simpleForm[ext]) {
                 // Simple form only and we're out!
-                Logger.debugi(counter, req.method, req.url);
+                Logger.debugi(counter, " ", req.method, " ", req.url);
                 return next();
             }
         }

@@ -341,3 +341,19 @@ exports.metaAndParams = function(meta) {
         });
     }
 }
+
+exports.checkForJSON = function(req,res,next) {
+    
+    if (!req.body) {
+        Logger.warn("Request had no body");
+        return res.send({error:"invalid_json", description: "A valid json object is required"});
+    }
+    
+    if (!req.is("application/json")) {
+        Logger.warn("Request isn't application/json, it is ",req.header("content-type"));
+        return res.send({error:"invalid_json", description: "A valid json object is required"});        
+    }
+    
+    // Things seem ok, keep going
+    next();
+}

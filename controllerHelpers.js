@@ -241,3 +241,103 @@ exports.register = function(app, name, controller, options) {
     }  
 }
 
+exports.handleMeta = function(meta) {
+    
+    return function(req, res, next) {
+        
+        if (!meta) return next();
+        
+        if (req.param("meta")) {
+            Logger.debug("Sending meta information");
+            return res.send(meta);
+        }
+        
+        // Let it go
+        next();
+    }
+}
+
+exports.checkMetaParams = function(meta) {
+    
+    return function(req, res, next) {
+        
+        // Bail if there is nothing to check
+        if (!meta) {
+            return next();
+        }
+
+        // Are there parameters needed?
+        var toCheck = meta.params;
+        if (!toCheck) {
+            // Nothing to do, pass it on
+            Logger.debugi("No parameters to check");
+            return next();
+        }
+        
+        Logger.debugi("Checking params ",toCheck);
+
+        // TODO: Enhance this checking so that for the early requests with redirect_uri's we can
+        // send the error responses as part of the redirect rather than as JSON in return to the
+        // original request. JSON is right once the API is up and running, but when getting the
+        // access tokens we actually want to redirect to the URI (as long as there is one).
+        // Check for the presence of each required parameter
+        for (key in toCheck) {
+            Logger.debug("Checking key", key);
+            var value = req.param(key);
+
+            var keyDesc = toCheck[key];
+            if (keyDesc.required) {
+                Logger.debugi("  it is required, value=",value);
+                if (!value) {
+                    return res.send({
+                          error: "Required parameter is missing"
+                        , description: "The required parameter '" + key + "' is missing."
+                    }, 400);
+                }
+            } else {
+                Logger.debugi("  - is not required");
+            }
+
+            if (value) {
+                // If it is there, it has to match the other validation
+                if (keyDesc.minLength) {
+                    if (value.length < keyDesc.minLength) {
+                        return res.send({
+                              error: "Parameter to short"
+                            , description: "The parameter '" + key + "' must be at least "+keyDesc.minLength+" characters long."                            
+                        }, 400);
+                    }
+                }
+
+                if (keyDesc.validation) {
+                    if (!keyDesc.validation.test(value)) {
+                        return res.send({
+                              error: "Bad format"
+                            , description: "The parameter '" + key + "' was not in the required format."
+                        }, 400);
+                    }
+                }
+            }
+        }
+
+        // We have all the right params, so do the request
+        
+        next();
+    };
+}
+
+exports.metaAndParams = function(meta) {
+    
+    var handler = exports.handleMeta(meta);
+    var checker = exports.checkMetaParams(meta);
+    
+    return function(req, res, next) {
+        
+        
+        handler(req, res, function(err) {
+            if (err) return next(err);
+            
+            checker(req, res, next);
+        });
+    }
+}

@@ -9,6 +9,7 @@ module.exports = function(options) {
     
     options = options || {};
     options.simpleForm = options.simpleForm || {};
+    options.simpleRegEx = options.simpleRegEx || [];
 
     return function(req, res, next) {
         // Log the incoming request
@@ -19,20 +20,32 @@ module.exports = function(options) {
         // Look at the file extension to see if we want the simple form
         var url = req.url;
         var ix = url.indexOf("?");
-        debugger
+        
         if (ix!=-1) {
             url = url.slice(0,ix);
         }        
-        
+
+        var useSimple = false;
         ix = url.lastIndexOf(".");
         if (ix!=-1) {
             var ext = url.slice(ix+1);
             
             if (options.simpleForm[ext]) {
-                // Simple form only and we're out!
-                Logger.debugi(counter, " ", req.method, " ", req.url);
-                return next();
+                useSimple = true;
             }
+        }
+        for(var i=0; i<options.simpleRegEx.length; i++) {
+            var re = options.simpleRegEx[i];
+            if (re.exec(url)) {
+                useSimple = true;
+                break;
+            }
+            Logger.debugi("Expression ",re," failed");
+        }
+        if (useSimple) {
+            // Simple form only and we're out!
+            Logger.debugi(counter, " ", req.method, " ", req.url);
+            return next();            
         }
         
         Logger.hr();

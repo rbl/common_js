@@ -150,6 +150,7 @@ function logLine(options) {
         }
         
         if (exports.SEPARATOR_CHAR)  line += exports.SEPARATOR_CHAR;
+        else if (options.spacer) line += options.spacer;
     }
     if (exports.DO_COLOR) line += COLOR_REST;
 
@@ -278,6 +279,33 @@ exports.erri = function() {
     logLine.apply(null, args);  
 }
 exports.errori = exports.erri;
+
+///////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////
+// Inspect and space versions
+[
+      ["debug", exports.DEBUG]
+    , ["info", exports.INFO]
+    , ["warn", exports.WARN]
+    , ["warning", exports.WARN]
+    , ["err", exports.ERROR]
+    , ["error", exports.ERROR]
+].forEach(function(spec) {
+
+    var subSpec = [];
+    subSpec.push( [ spec[0], {level:spec[1] } ] );
+    subSpec.push( [ spec[0]+"s", {level:spec[1], spacer:" " }] );
+    subSpec.push( [ spec[0]+"i", {level:spec[1], inspect:true } ] );
+    subSpec.push( [ spec[0]+"is", {level:spec[1], inspect:true, spacer:" "} ] );
+    
+    subSpec.forEach(function(spec) {
+        exports[spec[0]] = function() {
+            var args = Array.prototype.slice.apply(arguments);
+            args.unshift(spec[1]);
+            logLine.apply(null, args);
+        }
+    })
+});
 
 //----------------------------------------------------
 

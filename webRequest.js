@@ -40,7 +40,7 @@ WebRequest.prototype.start = function() {
     if (!self.url.pathname) self.url.pathname = '/';
     if (!self.url.port) self.url.port = 80;
     
-    Logger.debugi("WebRequest.start()", self.method, self.url.host, self.url.port, self.url.pathname, self.asJSON)
+    Logger.debugis("WebRequest.start()", self.method, self.url.host, self.url.port, self.url.pathname, self.asJSON)
 
     var reqOptions = {};
     
@@ -115,7 +115,7 @@ WebRequest.prototype.start = function() {
     
     // var request = client.request(self.method, path, headers);
     if (bodyContent) {
-        Logger.debug("Writing",bodyContent.length,"bytes of body content");
+        Logger.debugs("Writing",bodyContent.length,"bytes of body content");
         request.write(bodyContent);
     }
     request.end();
@@ -130,7 +130,7 @@ WebRequest.prototype.start = function() {
         //   if (callback) return callback(new Error("Got server response "+response.statusCode), null);
         // }
         //
-        Logger.debug('Response code is ', response.statusCode);
+        Logger.debugs('Response code is ', response.statusCode);
         // if (response.statusCode != 200) {
         //     try {
         //         self.callback({code:response.statusCode});
@@ -156,7 +156,7 @@ WebRequest.prototype.start = function() {
                         buff = JSON.parse(responseBuffer);
                     } catch (e) {
                         // ignore it ...
-                        Logger.debugi("Supposedly JSON response failed to parse",e);
+                        Logger.debugis("Supposedly JSON response failed to parse",e);
                     }
                     return self.callback(null, response, buff);
                 } else {
@@ -170,7 +170,7 @@ WebRequest.prototype.start = function() {
         if (self.callback) {
             return self.callback(error);
         }
-        Logger.errori("WebRequest on 'error'", error);
+        Logger.erroris("WebRequest on 'error'", error);
     });
 }
 

@@ -250,7 +250,7 @@ exports.extractJSONError = function(err, response, data) {
     
     if (data && data.error) return data;
     
-    if (response && response.code !== 200) return {error:"HTTP_"+response.code, errorDescription:response.message};
+    if (response && response.statusCode !== 200) return {error:"HTTP_"+response.statusCode, errorDescription:response.message};
     
     return null;
 }

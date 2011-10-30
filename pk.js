@@ -331,17 +331,23 @@ exports.rmTree = function(path, next) {
             var fpath = Path.join(path, file);
             (function(fpath) {
                 FS.lstat(fpath, function(err, stats) {
-                    if (stats.isDirectory()) {
-                        //Logger.debug("stat of ",fpath," DIRECTORY");
+                    if (stats && stats.isDirectory()) {
+                        Logger.debug("stat of ",fpath," DIRECTORY");
                         // Have to recurse into it
                         exports.rmTree(fpath, removalFinished);
                     } else {
                         // Just unlink it directly
-                        //Logger.debug("stat of ",fpath," file");
+                        Logger.debug("stat of ",fpath," file");
                         FS.unlink(fpath, removalFinished);
                     }
                 });
             })(fpath);
+        }
+        
+        // Handle special case where directory is already empty
+        if (pendingRemovals===0) {
+            pendingRemovals = 1;
+            removalFinished();
         }
         
     });

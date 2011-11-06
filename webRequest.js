@@ -27,6 +27,7 @@ var WebRequest = function WebRequest(opts)
     this.body = opts.body;
     this.callback = opts.callback;
     this.token = opts.token;    
+    this.contentType = opts.contentType;
 }
 
 exports.make = function make(opts) {

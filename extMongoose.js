@@ -44,7 +44,7 @@ function writeGridStore(name, permissions, data, isFile, callback) {
  * is properly associated with the object.
  *
  * @param {String} mode - one of "r", "w", or "w+"
- * @param {function(error, gridStroe)} callback - receives any error and the opened 
+ * @param {function(error, gridStore)} callback - receives any error and the opened 
  * gridStore object. See node-mongodb-native/lib/mongodb/gridfs/gridstore.js for details
  * @type void
  */

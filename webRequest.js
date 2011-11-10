@@ -62,6 +62,9 @@ WebRequest.prototype.start = function() {
     ///////////
     // Setup the path
     var path = self.url.pathname;
+    if (self.url.search) {
+        path += self.url.search;
+    }
     if (self.body && (self.method === "GET" || self.method === "DELETE")) {
         // These don't actually allow us to send content, so put this stuff in
         // the url path as query parameters

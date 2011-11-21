@@ -10,7 +10,7 @@ function InputBuffer(req) {
     
     var self = this;
     
-    Logger.infoi("InputBuffer created");
+    //Logger.infoi("InputBuffer created");
     self.deque = ByteDeque.create();
         
     req.on("data", function(data) {
@@ -40,7 +40,7 @@ InputBuffer.prototype.gotData = function(data) {
     
     var self = this;
     
-    Logger.infoi("InputBuffer got data length=",data ? data.length : "undef");
+    //Logger.infoi("InputBuffer got data length=",data ? data.length : "undef");
     
     if (data) {
         self.deque.writeBuffer(data);
@@ -51,7 +51,7 @@ InputBuffer.prototype.gotData = function(data) {
         var read = self.deque.readBuffer(self.shovel);
         if (read > 0) {
             // Dispatch to my own listeners
-            Logger.infoi("InputBuffer emitting data event");
+            //Logger.infoi("InputBuffer emitting data event");
             self.emit("data", self.shovel.slice(0,read));
             
             // Now, because we might have (i.e. probably did) get paused during that
@@ -60,12 +60,12 @@ InputBuffer.prototype.gotData = function(data) {
                 self.gotData();
             });
         } else if (self.haveEnded && !self.emittedEnd) {
-            Logger.infoi("InputBuffer emitting end event");
+            //Logger.infoi("InputBuffer emitting end event");
             self.emittedEnd = true;
             self.emit("end");
         }
     } else {
-        Logger.info("InputBuffer not emitting anything 'cause I'm paused");
+        //Logger.info("InputBuffer not emitting anything 'cause I'm paused");
     }
 }
 
@@ -73,7 +73,7 @@ InputBuffer.prototype.ended = function() {
     
     var self = this;
     
-    Logger.infoi("InputBuffer ended");
+    //Logger.infoi("InputBuffer ended");
     // Drop this to prevent continuation of a circular reference
     self.req = false;
     
@@ -89,13 +89,13 @@ InputBuffer.prototype.pause = function() {
     
     var self = this;
     
-    Logger.infoi("InputBuffer paused");
+    //Logger.infoi("InputBuffer paused");
     self.paused = true;
     
     // This doesn't always work (which is why we wrote this in the first place), but
     // give it a chance to work ...
     if (self.req) {
-        Logger.info("   also paused the request")
+        //Logger.info("   also paused the request")
         self.req.pause();
     }
 }
@@ -104,11 +104,11 @@ InputBuffer.prototype.resume = function() {
     
     var self = this;
     
-    Logger.infoi("InputBuffer resumed, dequeue.length=",self.deque.getLength());
+    //Logger.infoi("InputBuffer resumed, dequeue.length=",self.deque.getLength());
     self.paused = false;
     
     if (self.req) {
-        Logger.info("   also resumed the request")
+        //Logger.info("   also resumed the request")
         self.req.resume();
     }
     
@@ -121,7 +121,7 @@ InputBuffer.prototype.end = function() {
 
     var self = this;
     
-    Logger.infoi("InputBuffer end() called");
+    //Logger.infoi("InputBuffer end() called");
     if (self.req) {
         self.req.end();
     }
